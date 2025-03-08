@@ -8,6 +8,7 @@
 // std lib headers
 #include <string>
 #include <vector>
+#include <memory>
 
 namespace Orasis {
 
@@ -17,12 +18,13 @@ namespace Orasis {
     static constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 
     SwapChain(Device &deviceRef, VkExtent2D windowExtent);
+    SwapChain(Device &deviceRef, VkExtent2D windowExtent, std::shared_ptr<SwapChain> previous);
     ~SwapChain();
 
 
 
     SwapChain(const SwapChain &) = delete;
-    void operator=(const SwapChain &) = delete;
+    SwapChain operator=(const SwapChain &) = delete;
 
 
 
@@ -43,7 +45,13 @@ namespace Orasis {
     VkResult acquireNextImage(uint32_t *imageIndex);
     VkResult submitCommandBuffers(const VkCommandBuffer *buffers, uint32_t *imageIndex);
 
+    bool compareSwapFormats(const SwapChain &swapChain) const {
+      return swapChain.swapChainDepthFormat == swapChainDepthFormat &&
+             swapChain.swapChainImageFormat == swapChainImageFormat;
+    }
+
     private:
+    void init();
     void createSwapChain();
     void createImageViews();
     void createDepthResources();
@@ -59,6 +67,7 @@ namespace Orasis {
     VkExtent2D chooseSwapExtent(const VkSurfaceCapabilitiesKHR &capabilities);
 
     VkFormat swapChainImageFormat;
+    VkFormat swapChainDepthFormat;
     VkExtent2D swapChainExtent;
 
     std::vector<VkFramebuffer> swapChainFramebuffers;
@@ -71,10 +80,10 @@ namespace Orasis {
     std::vector<VkImageView> swapChainImageViews;
 
     Device &device;
+    std::shared_ptr<SwapChain> oldSwapChain;
     VkExtent2D windowExtent;
 
     VkSwapchainKHR swapChain;
-
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     std::vector<VkFence> inFlightFences;

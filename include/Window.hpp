@@ -12,8 +12,9 @@ namespace Orasis {
 
         GLFWwindow* window;
 
-        const int WIDTH;
-        const int HEIGHT;
+        int WIDTH;
+        int HEIGHT;
+        bool frameBufferResized = false;
 
         std::string window_title;
         
@@ -40,6 +41,16 @@ namespace Orasis {
             return glfwWindowShouldClose(window);
         }
 
+        bool wasWindowResized()
+        {
+            return frameBufferResized;
+        }
+
+        void resetWindowResizedFlag()
+        {
+            frameBufferResized = false;
+        }
+
         VkExtent2D getExtent()
         {
             return {static_cast<uint32_t>(WIDTH), static_cast<uint32_t>(HEIGHT)};
@@ -57,10 +68,25 @@ namespace Orasis {
 
             glfwInit();
             glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-            glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+            glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
             
             window = glfwCreateWindow(WIDTH, HEIGHT, window_title.c_str(), nullptr, nullptr);
+
+            glfwSetWindowUserPointer(window, this);
+            glfwSetFramebufferSizeCallback(window, frameBufferResizedCallback);
+            
         }
+
+        static void frameBufferResizedCallback(GLFWwindow* window, int width, int height)
+        {
+            Window* ors_Window = reinterpret_cast<Window*>(glfwGetWindowUserPointer(window));
+
+            ors_Window->frameBufferResized = true;
+            ors_Window->WIDTH = width;
+            ors_Window->HEIGHT = height;
+
+        }
+
     };
 
 

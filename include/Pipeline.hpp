@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Device.hpp"
+#include "Model.hpp"
 
 #include <string>
 #include <vector>
@@ -16,17 +17,23 @@ namespace Orasis {
     // Struct for configuring pipeline
     struct PipelineConfigInfo {
 
-        VkViewport viewport;
-        VkRect2D scissor;
+        PipelineConfigInfo(const PipelineConfigInfo&) = delete;
+        PipelineConfigInfo operator=(const PipelineConfigInfo&) = delete;
+
+        VkPipelineViewportStateCreateInfo viewportInfo;
         VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo;
         VkPipelineRasterizationStateCreateInfo rasterizationInfo;
         VkPipelineMultisampleStateCreateInfo multisampleInfo;
         VkPipelineColorBlendAttachmentState colorBlendAttachment;
         VkPipelineColorBlendStateCreateInfo colorBlendInfo;
         VkPipelineDepthStencilStateCreateInfo depthStencilInfo;
+        std::vector<VkDynamicState> dynamicStateEnables;
+        VkPipelineDynamicStateCreateInfo dynamicStateInfo;
         VkPipelineLayout pipelineLayout = nullptr;
         VkRenderPass renderPass = nullptr;
         uint32_t subpass = 0;
+
+        PipelineConfigInfo() = default;
 
     };
 
@@ -47,6 +54,8 @@ namespace Orasis {
             createGraphicsPipeline(vertFilePath, fragFilePath, configInfo);
         }
 
+        Pipeline() = default;
+
         ~Pipeline() 
         {
             vkDestroyShaderModule(ors_Device.device(), vertShaderModule, nullptr);
@@ -57,7 +66,7 @@ namespace Orasis {
 
 
         Pipeline(const Pipeline&) = delete;
-        void operator=(const Pipeline&) = delete;
+        Pipeline operator=(const Pipeline&) = delete;
 
 
 
@@ -67,28 +76,20 @@ namespace Orasis {
         }
 
 
-        static PipelineConfigInfo defaultPipelineConfigInfo(uint32_t width, uint32_t height)
+        static void defaultPipelineConfigInfo(PipelineConfigInfo& configInfo)
         {
-            PipelineConfigInfo configInfo {};
 
             configInfo.inputAssemblyInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
             configInfo.inputAssemblyInfo.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
             configInfo.inputAssemblyInfo.primitiveRestartEnable = VK_FALSE;
 
-            configInfo.viewport.x = 0.0f;
-            configInfo.viewport.y = 0.0f;
-            configInfo.viewport.width = static_cast<float>(width);
-            configInfo.viewport.height = static_cast<float>(height);
-            configInfo.viewport.minDepth = 0.0f;
-            configInfo.viewport.maxDepth = 1.0f;
             
-            configInfo.scissor.offset = {0, 0};
-            configInfo.scissor.extent = {width, height};
+            configInfo.viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+            configInfo.viewportInfo.viewportCount = 1;
+            configInfo.viewportInfo.pViewports = nullptr;
+            configInfo.viewportInfo.scissorCount = 1;
+            configInfo.viewportInfo.pScissors = nullptr;
 
-            configInfo.scissor.offset = {0, 0};
-            configInfo.scissor.extent = {width, height};
-            
-            
             configInfo.rasterizationInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
             configInfo.rasterizationInfo.depthClampEnable = VK_FALSE;
             configInfo.rasterizationInfo.rasterizerDiscardEnable = VK_FALSE;
@@ -141,7 +142,12 @@ namespace Orasis {
             configInfo.depthStencilInfo.front = {};  // Optional
             configInfo.depthStencilInfo.back = {};   // Optional
 
-            return configInfo;
+            configInfo.dynamicStateEnables = {VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR};
+            configInfo.dynamicStateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+            configInfo.dynamicStateInfo.pDynamicStates = configInfo.dynamicStateEnables.data();
+            configInfo.dynamicStateInfo.dynamicStateCount = static_cast<uint32_t>(configInfo.dynamicStateEnables.size());
+            configInfo.dynamicStateInfo.flags = 0;
+
         }
 
     
@@ -195,20 +201,17 @@ namespace Orasis {
             shaderStages[1].flags = 0;
             shaderStages[1].pNext = nullptr;
             shaderStages[1].pSpecializationInfo = nullptr;
+            
+            auto bindingDescriptions = Model::Vertex::getBindingDescriptions();
+            auto attributeDescriptions = Model::Vertex::getAttributeDescriptions();
 
             VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
             vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-            vertexInputInfo.vertexAttributeDescriptionCount = 0;
-            vertexInputInfo.vertexBindingDescriptionCount = 0;
-            vertexInputInfo.pVertexAttributeDescriptions = nullptr;
-            vertexInputInfo.pVertexBindingDescriptions = nullptr;
+            vertexInputInfo.vertexBindingDescriptionCount = static_cast<uint32_t>(bindingDescriptions.size());
+            vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+            vertexInputInfo.pVertexBindingDescriptions = bindingDescriptions.data();
+            vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
-            VkPipelineViewportStateCreateInfo viewportInfo{};
-            viewportInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
-            viewportInfo.viewportCount = 1;
-            viewportInfo.pViewports = &configInfo.viewport;
-            viewportInfo.scissorCount = 1;
-            viewportInfo.pScissors = &configInfo.scissor;
 
             VkGraphicsPipelineCreateInfo pipelineInfo{};
             pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -216,12 +219,12 @@ namespace Orasis {
             pipelineInfo.pStages = shaderStages;
             pipelineInfo.pVertexInputState = &vertexInputInfo;
             pipelineInfo.pInputAssemblyState = &configInfo.inputAssemblyInfo;
-            pipelineInfo.pViewportState = &viewportInfo;
+            pipelineInfo.pViewportState = &configInfo.viewportInfo;
             pipelineInfo.pRasterizationState = &configInfo.rasterizationInfo;
             pipelineInfo.pMultisampleState = &configInfo.multisampleInfo;
             pipelineInfo.pColorBlendState = &configInfo.colorBlendInfo;
             pipelineInfo.pDepthStencilState = &configInfo.depthStencilInfo;
-            pipelineInfo.pDynamicState = nullptr;
+            pipelineInfo.pDynamicState = &configInfo.dynamicStateInfo;
 
             pipelineInfo.layout = configInfo.pipelineLayout;
             pipelineInfo.renderPass = configInfo.renderPass;

@@ -1,8 +1,14 @@
 #pragma once
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#include <glm/glm.hpp>
+#include <glm/gtc/constants.hpp>
+
 #include "Window.hpp"
-#include "Pipeline.hpp"
-#include "SwapChain.hpp"
+#include "Render.hpp"
+#include "GameObject.hpp"
+#include "RenderSystem.hpp"
 
 #include <memory>
 #include <vector>
@@ -10,6 +16,7 @@
 #include <array>
 
 namespace Orasis {
+
 
     class App {
 
@@ -20,11 +27,9 @@ namespace Orasis {
 
         Window ors_Window{WIDTH, HEIGHT, "AAApp!!"};
         Device ors_Device{ors_Window};
-        SwapChain ors_SwapChain{ors_Device, ors_Window.getExtent()};
-        std::unique_ptr<Pipeline> ors_Pipeline;
+        Render ors_Render{ors_Window, ors_Device};
 
-        VkPipelineLayout pipelineLayout;
-        std::vector<VkCommandBuffer> commandBuffers;
+        std::vector<GameObject> gameObjects;
         
         // -------- -------- -------- -------- //
 
@@ -35,15 +40,11 @@ namespace Orasis {
 
         App()
         {
-            createPipelineLayout();
-            createPipeline();
-            createCommandBuffers();
+            loadGameObjects();
         }
 
         ~App()
-        {
-            vkDestroyPipelineLayout(ors_Device.device(), pipelineLayout, nullptr);
-        }
+        {}
 
         App(const App&) = delete;
         App &operator=(const App&) = delete;
@@ -58,11 +59,20 @@ namespace Orasis {
 
         void run() {
 
+            RenderSystem renderSys{ors_Device, ors_Render.getSwapChainRenderPass()};    
+
             while(!ors_Window.shouldClose())
             {
                 glfwPollEvents();
                 
-                drawFrame();
+                if (VkCommandBuffer cmndBuffer = ors_Render.beginFrame())
+                {
+                    ors_Render.startSwapChainRenderPass(cmndBuffer);
+                    renderSys.renderGameObjects(cmndBuffer, gameObjects);
+                    ors_Render.endSwapChainRenderPass(cmndBuffer);
+                    ors_Render.endFrame();
+
+                }
                 
             }
 
@@ -72,111 +82,90 @@ namespace Orasis {
 
         private:
 
-        void createPipelineLayout() 
+        void loadGameObjects()
         {
-            VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-
-            pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-            pipelineLayoutInfo.setLayoutCount = 0;
-            pipelineLayoutInfo.pSetLayouts = nullptr;
-            pipelineLayoutInfo.pushConstantRangeCount = 0;
-            pipelineLayoutInfo.pPushConstantRanges = nullptr;
-
-            if (vkCreatePipelineLayout(ors_Device.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
-                throw std::runtime_error("failed to create pipeline layout");   
-
-
-        }
-
-        void createPipeline()
-        {
-            Orasis::PipelineConfigInfo pipelineConfig = Pipeline::defaultPipelineConfigInfo(ors_SwapChain.width(), ors_SwapChain.height());
-
-            pipelineConfig.renderPass = ors_SwapChain.getRenderPass();
-            pipelineConfig.pipelineLayout = pipelineLayout;
-
-            ors_Pipeline = std::make_unique<Pipeline>
-            (
-                ors_Device,
-                "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/shaders/compiledShaders/shader.vert.spv",
-                "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/shaders/compiledShaders/shader.frag.spv",
-                pipelineConfig
-            );
-
-
-        }
-
-        void createCommandBuffers()
-        {
-
-            commandBuffers.resize(ors_SwapChain.imageCount());
-
-            VkCommandBufferAllocateInfo commandBufferAllocInfo{};
-            commandBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-            commandBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-            commandBufferAllocInfo.commandPool = ors_Device.getCommandPool();
-            commandBufferAllocInfo.commandBufferCount = static_cast<uint32_t>(commandBuffers.size());
-
-            if (vkAllocateCommandBuffers(ors_Device.device(), &commandBufferAllocInfo, commandBuffers.data()) != VK_SUCCESS)
-                throw std::runtime_error("failed to allocate command buffers");
-
-            for(int i = 0; i < commandBuffers.size(); i++)
+            std::vector<Model::Vertex> vertices
             {
-                VkCommandBufferBeginInfo beginInfo{};
-                beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+                {{0,   -1}, {1.0f, 0.0f, 0.0f}},    
+                {{1,   1}, {0.0f, 1.0f, 0.0f}},
+                {{-1,   1}, {0.0f, 0.0f, 1.0f}}
 
-                if (vkBeginCommandBuffer(commandBuffers[i], &beginInfo) != VK_SUCCESS)
-                    throw std::runtime_error("failed to begin command buffer");
+                
+            };  
 
-                VkRenderPassBeginInfo renderPassInfo{};
-                renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-                renderPassInfo.renderPass = ors_SwapChain.getRenderPass();
-                renderPassInfo.framebuffer = ors_SwapChain.getFrameBuffer(i);
+            // vertices = {};  
+            // glm::mat3x2 startVert = {0.f,   -1.f, -1.f,   1.f, 1.f,   1.f};
+            // verticesForTringleInATringle(8, startVert, vertices);
 
-                renderPassInfo.renderArea.offset = {0, 0};
-                renderPassInfo.renderArea.extent = ors_SwapChain.getSwapChainExtent();
+            std::shared_ptr<Model> ors_Model = std::make_unique<Model>(ors_Device, vertices);
 
-                std::array<VkClearValue, 2> clearValues{};
-                clearValues[0].color = {0.1f, 0.1f, 0.1f, 1.0f};
-                clearValues[1].depthStencil = {1.0f, 0};
-
-                renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-                renderPassInfo.pClearValues = clearValues.data();
-
-                vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-                ors_Pipeline->bind(commandBuffers[i]);
-
-                vkCmdDraw(commandBuffers[i], 3, 1, 0, 0);
-
-                vkCmdEndRenderPass(commandBuffers[i]);
-
-                if(vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS)
-                    throw std::runtime_error("failed to record command buffer");    
-
-            }
+            GameObject triangle = GameObject::createGameObject();
+            triangle.model = ors_Model;
+            triangle.color = {.1f, .8f, .1f};
+            triangle.transform2d.translation.x = .2f;
+            triangle.transform2d.scale = {0.5, 0.5};
+            triangle.transform2d.rotation = glm::pi<float>();
+            
+            gameObjects.push_back(std::move(triangle));
 
         }
 
-        void drawFrame()
+        void verticesForTringleInATringle(int depth, glm::mat3x2 startVert, std::vector<Model::Vertex>& out)
         {
-            static uint32_t imageIndex;
-            auto result = ors_SwapChain.acquireNextImage(&imageIndex);
-
-            if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR)
-                throw std::runtime_error("failed to aquire swap chain image");
-                
-                
-                
-            result = ors_SwapChain.submitCommandBuffers(&commandBuffers[imageIndex], &imageIndex);
-            if (result != VK_SUCCESS)
-                throw std::runtime_error("failed to present swap chain image");
             
-
+            if (depth-- <= 0) return;
             
+            // for(int i = 0; i < 3; i++)
+            // {
+            //     glm::vec2 top = startVert[0];
+            //     glm::vec2 left = (startVert[0] + startVert[1]) / 2.f;
+            //     glm::vec2 right = (startVert[0] + startVert[2]) / 2.f;
+                
+                
+            //     out.push_back({{top.x, top.y}});
+            //     out.push_back({{left.x, left.y}});
+            //     out.push_back({{right.x, right.y}});
+                
+            //     verticesForTringleInATringle(depth, {top, left, right}, out);
+
+            // }
+
+            glm::vec2 top = startVert[0];
+            glm::vec2 left = (startVert[0] + startVert[1]) / 2.f;
+            glm::vec2 right = (startVert[0] + startVert[2]) / 2.f;
+            
+            if (!depth){
+            out.push_back({{top.x, top.y}});
+            out.push_back({{left.x, left.y}});
+            out.push_back({{right.x, right.y}});
+            }
+            verticesForTringleInATringle(depth, {top, left, right}, out);
+
+            top = (startVert[0] + startVert[1]) / 2.f;;
+            left = startVert[1];
+            right = (startVert[1] + startVert[2]) / 2.f;
+
+            if (!depth){
+            out.push_back({{top.x, top.y}});
+            out.push_back({{left.x, left.y}});
+            out.push_back({{right.x, right.y}});
+            }
+            verticesForTringleInATringle(depth, {top, left, right}, out);
+
+            top = (startVert[0] + startVert[2]) / 2.f;
+            left = (startVert[1] + startVert[2]) / 2.f;
+            right = (startVert[2]);
+
+            if (!depth){
+            out.push_back({{top.x, top.y}});
+            out.push_back({{left.x, left.y}});
+            out.push_back({{right.x, right.y}});
+             }   
+            verticesForTringleInATringle(depth, {top, left, right}, out);
 
 
         }
+
 
 
     };
