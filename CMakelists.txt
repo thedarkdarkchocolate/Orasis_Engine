@@ -17,8 +17,8 @@ add_executable(${PROJECT_NAME} main.cpp ${SRC_FILES})
 # Include project directories
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/shaders)
-target_include_directories(${PROJECT_NAME} PUBLIC C:/VulkanSDK/1.4.304.0/Include)
-target_link_directories(${PROJECT_NAME} PUBLIC C:/VulkanSDK/1.4.304.0/Lib)
+target_include_directories(${PROJECT_NAME} PUBLIC C:/VulkanSDK/1.4.304.1/Include)
+target_link_directories(${PROJECT_NAME} PUBLIC C:/VulkanSDK/1.4.304.1/Lib)
 
 # find_package(ImGui-SFML CONFIG REQUIRED)
 find_package(glfw3 CONFIG REQUIRED)

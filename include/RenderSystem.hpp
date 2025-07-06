@@ -18,9 +18,7 @@ namespace Orasis {
 
     struct SimplePushConstantData 
     {
-        glm::mat2 transform{1.f,  0.f,
-                            0.0f, 1.f};
-        glm::vec2 offset;
+        glm::mat4 transform{1.f};
         alignas(16) glm::vec3 color;
     };
 
@@ -72,8 +70,7 @@ namespace Orasis {
             for (GameObject& obj: gameObjects)
             {
                 SimplePushConstantData push{};
-                push.transform = obj.transform2d.mat2();
-                push.offset = obj.transform2d.translation;
+                push.transform = obj.transform.mat4();
                 push.color = obj.color;
 
                 vkCmdPushConstants (
@@ -139,61 +136,61 @@ namespace Orasis {
 
        
 
-        void verticesForTringleInATringle(int depth, glm::mat3x2 startVert, std::vector<Model::Vertex>& out)
-        {
+        // void verticesForTringleInATringle(int depth, glm::mat3x2 startVert, std::vector<Model::Vertex>& out)
+        // {
             
-            if (depth-- <= 0) return;
+        //     if (depth-- <= 0) return;
             
-            // for(int i = 0; i < 3; i++)
-            // {
-            //     glm::vec2 top = startVert[0];
-            //     glm::vec2 left = (startVert[0] + startVert[1]) / 2.f;
-            //     glm::vec2 right = (startVert[0] + startVert[2]) / 2.f;
+        //     // for(int i = 0; i < 3; i++)
+        //     // {
+        //     //     glm::vec2 top = startVert[0];
+        //     //     glm::vec2 left = (startVert[0] + startVert[1]) / 2.f;
+        //     //     glm::vec2 right = (startVert[0] + startVert[2]) / 2.f;
                 
                 
-            //     out.push_back({{top.x, top.y}});
-            //     out.push_back({{left.x, left.y}});
-            //     out.push_back({{right.x, right.y}});
+        //     //     out.push_back({{top.x, top.y}});
+        //     //     out.push_back({{left.x, left.y}});
+        //     //     out.push_back({{right.x, right.y}});
                 
-            //     verticesForTringleInATringle(depth, {top, left, right}, out);
+        //     //     verticesForTringleInATringle(depth, {top, left, right}, out);
 
-            // }
+        //     // }
 
-            glm::vec2 top = startVert[0];
-            glm::vec2 left = (startVert[0] + startVert[1]) / 2.f;
-            glm::vec2 right = (startVert[0] + startVert[2]) / 2.f;
+        //     glm::vec2 top = startVert[0];
+        //     glm::vec2 left = (startVert[0] + startVert[1]) / 2.f;
+        //     glm::vec2 right = (startVert[0] + startVert[2]) / 2.f;
             
-            if (!depth){
-            out.push_back({{top.x, top.y}});
-            out.push_back({{left.x, left.y}});
-            out.push_back({{right.x, right.y}});
-            }
-            verticesForTringleInATringle(depth, {top, left, right}, out);
+        //     if (!depth){
+        //     out.push_back({{top.x, top.y}});
+        //     out.push_back({{left.x, left.y}});
+        //     out.push_back({{right.x, right.y}});
+        //     }
+        //     verticesForTringleInATringle(depth, {top, left, right}, out);
 
-            top = (startVert[0] + startVert[1]) / 2.f;;
-            left = startVert[1];
-            right = (startVert[1] + startVert[2]) / 2.f;
+        //     top = (startVert[0] + startVert[1]) / 2.f;;
+        //     left = startVert[1];
+        //     right = (startVert[1] + startVert[2]) / 2.f;
 
-            if (!depth){
-            out.push_back({{top.x, top.y}});
-            out.push_back({{left.x, left.y}});
-            out.push_back({{right.x, right.y}});
-            }
-            verticesForTringleInATringle(depth, {top, left, right}, out);
+        //     if (!depth){
+        //     out.push_back({{top.x, top.y}});
+        //     out.push_back({{left.x, left.y}});
+        //     out.push_back({{right.x, right.y}});
+        //     }
+        //     verticesForTringleInATringle(depth, {top, left, right}, out);
 
-            top = (startVert[0] + startVert[2]) / 2.f;
-            left = (startVert[1] + startVert[2]) / 2.f;
-            right = (startVert[2]);
+        //     top = (startVert[0] + startVert[2]) / 2.f;
+        //     left = (startVert[1] + startVert[2]) / 2.f;
+        //     right = (startVert[2]);
 
-            if (!depth){
-            out.push_back({{top.x, top.y}});
-            out.push_back({{left.x, left.y}});
-            out.push_back({{right.x, right.y}});
-             }   
-            verticesForTringleInATringle(depth, {top, left, right}, out);
+        //     if (!depth){
+        //     out.push_back({{top.x, top.y}});
+        //     out.push_back({{left.x, left.y}});
+        //     out.push_back({{right.x, right.y}});
+        //      }   
+        //     verticesForTringleInATringle(depth, {top, left, right}, out);
 
 
-        }
+        // }
 
 
 

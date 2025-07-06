@@ -12,11 +12,6 @@
 
 namespace Orasis {
 
-    // vecrtex struct
-
-    
-    
-    
     class Model {
         
         Device& ors_Device;
@@ -25,14 +20,11 @@ namespace Orasis {
         uint32_t vertexCount;
         
         
-        
-        
-        
         public:
         
         struct Vertex
         {
-            glm::vec2 position;
+            glm::vec3 position;
             glm::vec3 color;
             
             static std::vector<VkVertexInputBindingDescription> getBindingDescriptions()
@@ -46,7 +38,7 @@ namespace Orasis {
                 // 1 -> location, 2 -> binding, 3 -> format, 4 -> offset
                 return {    
                             //      vvv -- positions -- vvv
-                            {0, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, position)}, 
+                            {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position)}, 
 
                             //      vvv -- colors -- vvv 
                             {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)}

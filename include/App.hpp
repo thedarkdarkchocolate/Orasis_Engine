@@ -82,88 +82,76 @@ namespace Orasis {
 
         private:
 
-        void loadGameObjects()
-        {
-            std::vector<Model::Vertex> vertices
-            {
-                {{0,   -1}, {1.0f, 0.0f, 0.0f}},    
-                {{1,   1}, {0.0f, 1.0f, 0.0f}},
-                {{-1,   1}, {0.0f, 0.0f, 1.0f}}
-
-                
-            };  
-
-            // vertices = {};  
-            // glm::mat3x2 startVert = {0.f,   -1.f, -1.f,   1.f, 1.f,   1.f};
-            // verticesForTringleInATringle(8, startVert, vertices);
-
-            std::shared_ptr<Model> ors_Model = std::make_unique<Model>(ors_Device, vertices);
-
-            GameObject triangle = GameObject::createGameObject();
-            triangle.model = ors_Model;
-            triangle.color = {.1f, .8f, .1f};
-            triangle.transform2d.translation.x = .2f;
-            triangle.transform2d.scale = {0.5, 0.5};
-            triangle.transform2d.rotation = glm::pi<float>();
+        // temporary helper function, creates a 1x1x1 cube centered at offset
+        std::unique_ptr<Model> createCubeModel(Device& device, glm::vec3 offset) {
+                std::vector<Model::Vertex> vertices{
             
-            gameObjects.push_back(std::move(triangle));
+                    // left face (white)
+                    {{-.5f, -.5f, -.5f}, {.9f, .9f, .9f}},
+                    {{-.5f, .5f, .5f}, {.9f, .9f, .9f}},
+                    {{-.5f, -.5f, .5f}, {.9f, .9f, .9f}},
+                    {{-.5f, -.5f, -.5f}, {.9f, .9f, .9f}},
+                    {{-.5f, .5f, -.5f}, {.9f, .9f, .9f}},
+                    {{-.5f, .5f, .5f}, {.9f, .9f, .9f}},
+            
+                    // right face (yellow)
+                    {{.5f, -.5f, -.5f}, {.8f, .8f, .1f}},
+                    {{.5f, .5f, .5f}, {.8f, .8f, .1f}},
+                    {{.5f, -.5f, .5f}, {.8f, .8f, .1f}},
+                    {{.5f, -.5f, -.5f}, {.8f, .8f, .1f}},
+                    {{.5f, .5f, -.5f}, {.8f, .8f, .1f}},
+                    {{.5f, .5f, .5f}, {.8f, .8f, .1f}},
+            
+                    // top face (orange, remember y axis points down)
+                    {{-.5f, -.5f, -.5f}, {.9f, .6f, .1f}},
+                    {{.5f, -.5f, .5f}, {.9f, .6f, .1f}},
+                    {{-.5f, -.5f, .5f}, {.9f, .6f, .1f}},
+                    {{-.5f, -.5f, -.5f}, {.9f, .6f, .1f}},
+                    {{.5f, -.5f, -.5f}, {.9f, .6f, .1f}},
+                    {{.5f, -.5f, .5f}, {.9f, .6f, .1f}},
+            
+                    // bottom face (red)
+                    {{-.5f, .5f, -.5f}, {.8f, .1f, .1f}},
+                    {{.5f, .5f, .5f}, {.8f, .1f, .1f}},
+                    {{-.5f, .5f, .5f}, {.8f, .1f, .1f}},
+                    {{-.5f, .5f, -.5f}, {.8f, .1f, .1f}},
+                    {{.5f, .5f, -.5f}, {.8f, .1f, .1f}},
+                    {{.5f, .5f, .5f}, {.8f, .1f, .1f}},
+            
+                    // nose face (blue)
+                    {{-.5f, -.5f, 0.5f}, {.1f, .1f, .8f}},
+                    {{.5f, .5f, 0.5f}, {.1f, .1f, .8f}},
+                    {{-.5f, .5f, 0.5f}, {.1f, .1f, .8f}},
+                    {{-.5f, -.5f, 0.5f}, {.1f, .1f, .8f}},
+                    {{.5f, -.5f, 0.5f}, {.1f, .1f, .8f}},
+                    {{.5f, .5f, 0.5f}, {.1f, .1f, .8f}},
+            
+                    // tail face (green)
+                    {{-.5f, -.5f, -0.5f}, {.1f, .8f, .1f}},
+                    {{.5f, .5f, -0.5f}, {.1f, .8f, .1f}},
+                    {{-.5f, .5f, -0.5f}, {.1f, .8f, .1f}},
+                    {{-.5f, -.5f, -0.5f}, {.1f, .8f, .1f}},
+                    {{.5f, -.5f, -0.5f}, {.1f, .8f, .1f}},
+                    {{.5f, .5f, -0.5f}, {.1f, .8f, .1f}},
+            
+                };
 
+            for (auto& v : vertices) 
+                v.position += offset;
+            
+            return std::make_unique<Model>(device, vertices);
         }
 
-        void verticesForTringleInATringle(int depth, glm::mat3x2 startVert, std::vector<Model::Vertex>& out)
+        void loadGameObjects()
         {
-            
-            if (depth-- <= 0) return;
-            
-            // for(int i = 0; i < 3; i++)
-            // {
-            //     glm::vec2 top = startVert[0];
-            //     glm::vec2 left = (startVert[0] + startVert[1]) / 2.f;
-            //     glm::vec2 right = (startVert[0] + startVert[2]) / 2.f;
-                
-                
-            //     out.push_back({{top.x, top.y}});
-            //     out.push_back({{left.x, left.y}});
-            //     out.push_back({{right.x, right.y}});
-                
-            //     verticesForTringleInATringle(depth, {top, left, right}, out);
+            std::shared_ptr<Model> model = createCubeModel(ors_Device, {0.f, 0.f, 0.f});
 
-            // }
+            GameObject cube = GameObject::createGameObject();
 
-            glm::vec2 top = startVert[0];
-            glm::vec2 left = (startVert[0] + startVert[1]) / 2.f;
-            glm::vec2 right = (startVert[0] + startVert[2]) / 2.f;
-            
-            if (!depth){
-            out.push_back({{top.x, top.y}});
-            out.push_back({{left.x, left.y}});
-            out.push_back({{right.x, right.y}});
-            }
-            verticesForTringleInATringle(depth, {top, left, right}, out);
-
-            top = (startVert[0] + startVert[1]) / 2.f;;
-            left = startVert[1];
-            right = (startVert[1] + startVert[2]) / 2.f;
-
-            if (!depth){
-            out.push_back({{top.x, top.y}});
-            out.push_back({{left.x, left.y}});
-            out.push_back({{right.x, right.y}});
-            }
-            verticesForTringleInATringle(depth, {top, left, right}, out);
-
-            top = (startVert[0] + startVert[2]) / 2.f;
-            left = (startVert[1] + startVert[2]) / 2.f;
-            right = (startVert[2]);
-
-            if (!depth){
-            out.push_back({{top.x, top.y}});
-            out.push_back({{left.x, left.y}});
-            out.push_back({{right.x, right.y}});
-             }   
-            verticesForTringleInATringle(depth, {top, left, right}, out);
-
-
+            cube.model = model;
+            cube.transform.translation = {0.f, 0.f, 0.5f};
+            cube.transform.scale = {0.5f, 0.5f, 0.5f};
+            gameObjects.push_back(std::move(cube));
         }
 
 
