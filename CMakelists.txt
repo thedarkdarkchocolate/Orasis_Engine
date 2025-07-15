@@ -57,6 +57,22 @@ endif (UNIX)
 #             "$<TARGET_FILE_DIR:${PROJECT_NAME}>")  # Output directory of the executable
 # endif()
 
+# Replace with the actual path to your .bat file
+set(COMPILE_SHADERS "C:\\Users\\thedarkchoco\\Desktop\\vs_code\\Orasis_Engine\\compileShader.bat")
+
+# Custom target to run the batch file
+add_custom_target(RunBatch ALL
+    COMMAND ${CMAKE_COMMAND} -E echo "Running batch script..."
+    COMMAND ${COMPILE_SHADERS}
+    WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
+    COMMENT "Executing .bat script"
+)
+
+# Make sure the script runs every time you build the main target
+add_dependencies(${PROJECT_NAME} RunBatch)
+
+
+
 # Configure CPack (for packaging)
 set(CPACK_PROJECT_NAME ${PROJECT_NAME})
 set(CPACK_PROJECT_VERSION ${PROJECT_VERSION})

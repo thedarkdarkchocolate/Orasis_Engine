@@ -92,10 +92,10 @@ class Device {
 
   VkInstance instance;
   VkDebugUtilsMessengerEXT debugMessenger;
-  VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
   Window &window;
   VkCommandPool commandPool;
-
+  
+  VkPhysicalDevice physicalDevice = VK_NULL_HANDLE;
   VkDevice device_;
   VkSurfaceKHR surface_;
   VkQueue graphicsQueue_;

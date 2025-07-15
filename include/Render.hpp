@@ -182,6 +182,10 @@ namespace Orasis {
             return currentFrameIndex;
         }
 
+        float getAspectRatio() const 
+        {
+            return ors_SwapChain->extentAspectRatio();
+        }
 
         private:
 
@@ -215,6 +219,7 @@ namespace Orasis {
             }
 
             vkDeviceWaitIdle(ors_Device.device());
+            ors_SwapChain = nullptr;
             ors_SwapChain = std::make_unique<SwapChain>(ors_Device, extent);
             
             if (ors_SwapChain == nullptr) {

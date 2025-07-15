@@ -69,6 +69,7 @@ Device::~Device() {
 }
 
 void Device::createInstance() {
+
   if (enableValidationLayers && !checkValidationLayerSupport()) {
     throw std::runtime_error("validation layers requested, but not available!");
   }
@@ -199,7 +200,11 @@ void Device::createCommandPool() {
   }
 }
 
-void Device::createSurface() { window.createWindowSurface(instance, &surface_); }
+void Device::createSurface() {
+  
+    window.createWindowSurface(instance, &surface_); 
+
+  }
 
 bool Device::isDeviceSuitable(VkPhysicalDevice device) {
   

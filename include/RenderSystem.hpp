@@ -5,6 +5,7 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
+#include "Camera.hpp"
 #include "Device.hpp"
 #include "Pipeline.hpp"
 #include "GameObject.hpp"
@@ -63,14 +64,20 @@ namespace Orasis {
 
         
 
-        void renderGameObjects(VkCommandBuffer commandBuffer, std::vector<GameObject>& gameObjects)
+        void renderGameObjects(VkCommandBuffer commandBuffer, std::vector<GameObject>& gameObjects, const Camera& camera)
         {
             ors_Pipeline->bind(commandBuffer);
             
+            glm::mat4 projectionView = camera.getProjection() * camera.getViewMatrix();
+
             for (GameObject& obj: gameObjects)
             {
+
+                obj.transform.rotation.y = glm::mod(obj.transform.rotation.y + 0.01f, glm::two_pi<float>());
+                obj.transform.rotation.x = glm::mod(obj.transform.rotation.x + 0.005f, glm::two_pi<float>());
+
                 SimplePushConstantData push{};
-                push.transform = obj.transform.mat4();
+                push.transform = projectionView * obj.transform.mat4();
                 push.color = obj.color;
 
                 vkCmdPushConstants (
