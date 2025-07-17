@@ -17,6 +17,8 @@ namespace Orasis {
     // Struct for configuring pipeline
     struct PipelineConfigInfo {
 
+        PipelineConfigInfo() = default;
+
         PipelineConfigInfo(const PipelineConfigInfo&) = delete;
         PipelineConfigInfo operator=(const PipelineConfigInfo&) = delete;
 
@@ -33,7 +35,6 @@ namespace Orasis {
         VkRenderPass renderPass = nullptr;
         uint32_t subpass = 0;
 
-        PipelineConfigInfo() = default;
 
     };
 

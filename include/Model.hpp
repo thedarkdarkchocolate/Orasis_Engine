@@ -1,16 +1,20 @@
 #pragma once
 
 #include "Device.hpp"
+#include "Buffer.hpp"
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
 
+#include <memory>
+#include <unordered_map>
 #include <vector>
 #include <cstring>
 
 
+
+
 namespace Orasis {
+
 
     class Model {
         
@@ -18,13 +22,11 @@ namespace Orasis {
         bool hasIndexBuffer {false};
 
         // Vertex Buffer, memory, count
-        VkBuffer vertexBuffer;
-        VkDeviceMemory vertexBufferMemory;
+        std::unique_ptr<Buffer> vertexBuffer;
         uint32_t vertexCount;
         
         // Index Buffer, memory, count
-        VkBuffer indexBuffer;
-        VkDeviceMemory indexBufferMemory;
+        std::unique_ptr<Buffer> indexBuffer;
         uint32_t indexCount;
         
         
@@ -32,8 +34,10 @@ namespace Orasis {
         
             struct Vertex
             {
-                glm::vec3 position;
-                glm::vec3 color;
+                glm::vec3 position{};
+                glm::vec3 color{};
+                glm::vec3 normal{};
+                glm::vec2 uv{};
                 
                 static std::vector<VkVertexInputBindingDescription> getBindingDescriptions()
                 {
@@ -43,14 +47,25 @@ namespace Orasis {
 
                 static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions()
                 {
-                    // 1 -> location, 2 -> binding, 3 -> format, 4 -> offset
+                                // 1 -> location, 2 -> binding, 3 -> format, 4 -> offset
                     return {    
                                 //      vvv -- positions -- vvv
                                 {0, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, position)}, 
 
                                 //      vvv -- colors -- vvv 
-                                {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)}
+                                {1, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, color)},
+
+                                //      vvv -- normals -- vvv 
+                                {2, 0, VK_FORMAT_R32G32B32_SFLOAT, offsetof(Vertex, normal)},
+
+                                //      vvv -- uvs -- vvv 
+                                {3, 0, VK_FORMAT_R32G32_SFLOAT, offsetof(Vertex, uv)}
                             };
+                }
+
+                bool operator==(const Vertex& other) const
+                {
+                    return (position == other.position && color == other.color && normal == other.normal && uv == other.uv);
                 }
         
             };  
@@ -59,6 +74,8 @@ namespace Orasis {
 
                 std::vector<Vertex> vertices{};
                 std::vector<uint32_t> indices{};
+
+                void loadModel(const std::string& filepath);      
 
             };
 
@@ -71,19 +88,7 @@ namespace Orasis {
                 createIndexBuffers(builder.indices);
             }
             
-            ~Model()
-            {
-                // Vertex Buffer cleanup
-                vkDestroyBuffer(ors_Device.device(), vertexBuffer, nullptr);
-                vkFreeMemory(ors_Device.device(), vertexBufferMemory, nullptr);
-                
-                // Index Buffer cleanup
-                if (hasIndexBuffer)
-                {
-                    vkDestroyBuffer(ors_Device.device(), indexBuffer, nullptr);
-                    vkFreeMemory(ors_Device.device(), indexBufferMemory, nullptr);
-                }
-            }
+            ~Model() {}
             
             
             Model(const Model&) = delete;
@@ -99,45 +104,32 @@ namespace Orasis {
                 vertexCount = static_cast<uint32_t>(vertices.size());
                 assert(vertexCount >= 3 && "Vertex count must be greater than 3");
                 
+                uint32_t vertexSize = sizeof(vertices[0]);
                 VkDeviceSize bufferSize = sizeof(vertices[0]) * vertexCount;
                 
-                // Staging buffer
-                VkBuffer stagingBuffer;
-                VkDeviceMemory stagingBufferMemory;
-
-                // Creating Staging Buffer
-                ors_Device.createBuffer
-                (
-                    bufferSize,
-                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+                Buffer stagingBuffer {
+                    ors_Device,
+                    vertexSize,
+                    vertexCount,
+                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                    stagingBuffer,
-                    stagingBufferMemory
-                );
+                };
                 
-                // Copying vertices to staging buffer
-                void* data;
-                vkMapMemory(ors_Device.device(), stagingBufferMemory, 0, bufferSize, 0, &data);
-                memcpy(data, vertices.data(), static_cast<size_t>(bufferSize));
-                vkUnmapMemory(ors_Device.device(), stagingBufferMemory);
+                stagingBuffer.map();
+                stagingBuffer.writeToBuffer((void *)vertices.data());
                 
-                // Creating local device buffer
-                ors_Device.createBuffer
-                (
-                    bufferSize,
+                
+                vertexBuffer = std::make_unique<Buffer>(
+                    ors_Device,
+                    vertexSize,
+                    vertexCount,
                     VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
-                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                    vertexBuffer,
-                    vertexBufferMemory
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
                 );
 
                 // Copying from staging to local device buffer
-                ors_Device.copyBuffer(stagingBuffer, vertexBuffer, bufferSize);
+                ors_Device.copyBuffer(stagingBuffer.getBuffer(), vertexBuffer->getBuffer(), bufferSize);
 
-                // Destroying staging buffer after vertices got copied to local device buffer
-                vkDestroyBuffer(ors_Device.device(), stagingBuffer, nullptr);
-                vkFreeMemory(ors_Device.device(), stagingBufferMemory, nullptr);
-                    
             }
                 
             void createIndexBuffers(const std::vector<uint32_t>& indices)
@@ -147,55 +139,52 @@ namespace Orasis {
 
                 if (!hasIndexBuffer) return; 
                 
+                uint32_t indexSize = sizeof(indices[0]);
                 VkDeviceSize bufferSize = sizeof(indices[0]) * indexCount;
-                
-                // Staging buffer
-                VkBuffer stagingBuffer;
-                VkDeviceMemory stagingBufferMemory;
 
-                // Creating Staging Buffer
-                ors_Device.createBuffer
-                (
-                    bufferSize,
-                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT, 
+                Buffer stagingBuffer {
+                    ors_Device,
+                    indexSize,
+                    indexCount,
+                    VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                    stagingBuffer,
-                    stagingBufferMemory
-                );
+                };
                 
-                // Copying indices to staging buffer
-                void* data;
-                vkMapMemory(ors_Device.device(), stagingBufferMemory, 0, bufferSize, 0, &data);
-                memcpy(data, indices.data(), static_cast<size_t>(bufferSize));
-                vkUnmapMemory(ors_Device.device(), stagingBufferMemory);
+                stagingBuffer.map();
+                stagingBuffer.writeToBuffer((void *)indices.data());
                 
-                // Creating local device buffer
-                ors_Device.createBuffer
-                (
-                    bufferSize,
+                
+                indexBuffer = std::make_unique<Buffer>(
+                    ors_Device,
+                    indexSize,
+                    indexCount,
                     VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, 
-                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                    indexBuffer,
-                    indexBufferMemory
+                    VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
                 );
+                
 
                 // Copying from staging to local device buffer
-                ors_Device.copyBuffer(stagingBuffer, indexBuffer, bufferSize);
+                ors_Device.copyBuffer(stagingBuffer.getBuffer(), indexBuffer->getBuffer(), bufferSize);
 
-                // Destroying staging buffer after indices got copied to local device buffer
-                vkDestroyBuffer(ors_Device.device(), stagingBuffer, nullptr);
-                vkFreeMemory(ors_Device.device(), stagingBufferMemory, nullptr);
+            }
+
+            static std::unique_ptr<Model> createModelFromFile(Device& device, const std::string& filepath)
+            {
+                Builder builder;
+                builder.loadModel(filepath);
+
+                return std::make_unique<Model>(device, builder);
             }
 
 
             void bind(VkCommandBuffer commandBuffer)
             {
-                VkBuffer buffers[] = {vertexBuffer};
+                VkBuffer buffers[] = {vertexBuffer->getBuffer()};
                 VkDeviceSize offsets[] = {0};
                 vkCmdBindVertexBuffers(commandBuffer, 0, 1, buffers, offsets);
                 
                 if (hasIndexBuffer)
-                    vkCmdBindIndexBuffer(commandBuffer, indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+                    vkCmdBindIndexBuffer(commandBuffer, indexBuffer->getBuffer(), 0, VK_INDEX_TYPE_UINT32);
 
             }
             
@@ -214,3 +203,4 @@ namespace Orasis {
             
 
 }
+

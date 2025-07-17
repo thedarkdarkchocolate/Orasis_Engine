@@ -16,6 +16,7 @@ add_executable(${PROJECT_NAME} main.cpp ${SRC_FILES})
 
 # Include project directories
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/include)
+target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/dependacies)
 target_include_directories(${PROJECT_NAME} PUBLIC ${PROJECT_SOURCE_DIR}/shaders)
 target_include_directories(${PROJECT_NAME} PUBLIC C:/VulkanSDK/1.4.304.1/Include)
 target_link_directories(${PROJECT_NAME} PUBLIC C:/VulkanSDK/1.4.304.1/Lib)
@@ -63,7 +64,7 @@ set(COMPILE_SHADERS "C:\\Users\\thedarkchoco\\Desktop\\vs_code\\Orasis_Engine\\c
 # Custom target to run the batch file
 add_custom_target(RunBatch ALL
     COMMAND ${CMAKE_COMMAND} -E echo "Running batch script..."
-    COMMAND ${COMPILE_SHADERS}
+    COMMAND ${COMPILE_SHADERS} 
     WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
     COMMENT "Executing .bat script"
 )

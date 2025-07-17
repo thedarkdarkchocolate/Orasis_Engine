@@ -11,6 +11,7 @@
 #include "GameObject.hpp"
 #include "RenderSystem.hpp"
 #include "Kmb_movement_controller.hpp"
+#include "Buffer.hpp"
 
 #include <memory>
 #include <chrono>
@@ -20,6 +21,12 @@
 
 namespace Orasis {
 
+    struct UBO_struct {
+        glm::mat4 projectionView{1.f};
+        glm::vec3 lightPos = {1.f, -3.5, -1.f};
+    };
+
+
 
     class App {
 
@@ -27,11 +34,9 @@ namespace Orasis {
 
         static constexpr int WIDTH = 800;
         static constexpr int HEIGHT = 600;
-
         Window ors_Window{WIDTH, HEIGHT, "AAApp!!"};
         Device ors_Device{ors_Window};
         Render ors_Render{ors_Window, ors_Device};
-
         std::vector<GameObject> gameObjects;
         
         // -------- -------- -------- -------- //
@@ -62,6 +67,22 @@ namespace Orasis {
 
             void run() {
 
+                std::vector<std::unique_ptr<Buffer>> uniformBuffers (SwapChain::MAX_FRAMES_IN_FLIGHT);
+
+                for (int i = 0; i < uniformBuffers.size(); i++)
+                {
+                    // Uniform Buffer
+                    uniformBuffers[i] = std::make_unique<Buffer> (
+                        ors_Device,
+                        sizeof(UBO_struct),
+                        1,
+                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                        ors_Device.properties.limits.minUniformBufferOffsetAlignment
+                    );
+                    uniformBuffers[i]->map();    // Enables writing on the buffer
+                }
+
                 RenderSystem renderSys{ors_Device, ors_Render.getSwapChainRenderPass()};   
 
                 Camera camera{};
@@ -90,8 +111,27 @@ namespace Orasis {
                     
                     if (VkCommandBuffer cmndBuffer = ors_Render.beginFrame())
                     {
+                        int frameIndex = ors_Render.getFrameIndex();
+
+                        // Update Frame Info
+                        FrameInfo frameInfo {
+                            cmndBuffer,
+                            camera,
+                            frameIndex,
+                            dt
+                        };
+
+                        // Update UBO
+                        UBO_struct ubo_s{};
+                        ubo_s.projectionView = camera.getProjection() * camera.getViewMatrix();
+                        
+                        uniformBuffers[frameIndex]->writeToBuffer(&ubo_s);
+                        uniformBuffers[frameIndex]->flush(frameIndex);
+
+                        // Render
+                        
                         ors_Render.startSwapChainRenderPass(cmndBuffer);
-                        renderSys.renderGameObjects(cmndBuffer, gameObjects, camera);
+                        renderSys.renderGameObjects(frameInfo, gameObjects);
                         ors_Render.endSwapChainRenderPass(cmndBuffer);
                         ors_Render.endFrame();
 
@@ -107,75 +147,26 @@ namespace Orasis {
 
         private:
 
-            // temporary helper function, creates a 1x1x1 cube centered at offset
-            std::unique_ptr<Model> createCubeModel(Device& device, glm::vec3 offset) {
-
-                Model::Builder modelBuilder{};
-
-                modelBuilder.vertices = {
-                    // left face (white)
-                    {{-.5f, -.5f, -.5f}, {.9f, .9f, .9f}},      //1     
-                    {{-.5f, .5f, .5f}, {.9f, .9f, .9f}},        //2   
-                    {{-.5f, -.5f, .5f}, {.9f, .9f, .9f}},       //3     
-                    {{-.5f, .5f, -.5f}, {.9f, .9f, .9f}},       //4     
-                
-                    // right face (yellow)
-                    {{.5f, -.5f, -.5f}, {.8f, .8f, .1f}},       //5     
-                    {{.5f, .5f, .5f}, {.8f, .8f, .1f}},         //6     
-                    {{.5f, -.5f, .5f}, {.8f, .8f, .1f}},        //7     
-                    {{.5f, .5f, -.5f}, {.8f, .8f, .1f}},        //8     
-                
-                    // top face (orange, remember y axis points down)
-                    {{-.5f, -.5f, -.5f}, {.9f, .6f, .1f}},      //9     
-                    {{.5f, -.5f, .5f}, {.9f, .6f, .1f}},        //10     
-                    {{-.5f, -.5f, .5f}, {.9f, .6f, .1f}},       //11    
-                    {{.5f, -.5f, -.5f}, {.9f, .6f, .1f}},       //12     
-                
-                    // bottom face (red)
-                    {{-.5f, .5f, -.5f}, {.8f, .1f, .1f}},       //13     
-                    {{.5f, .5f, .5f}, {.8f, .1f, .1f}},         //14     
-                    {{-.5f, .5f, .5f}, {.8f, .1f, .1f}},        //15     
-                    {{.5f, .5f, -.5f}, {.8f, .1f, .1f}},        //16     
-                
-                    // nose face (blue)
-                    {{-.5f, -.5f, 0.5f}, {.1f, .1f, .8f}},      //17     
-                    {{.5f, .5f, 0.5f}, {.1f, .1f, .8f}},        //18     
-                    {{-.5f, .5f, 0.5f}, {.1f, .1f, .8f}},       //19     
-                    {{.5f, -.5f, 0.5f}, {.1f, .1f, .8f}},       //20     
-                
-                    // tail face (green)
-                    {{-.5f, -.5f, -0.5f}, {.1f, .8f, .1f}},     //21     
-                    {{.5f, .5f, -0.5f}, {.1f, .8f, .1f}},       //22     
-                    {{-.5f, .5f, -0.5f}, {.1f, .8f, .1f}},      //23     
-                    {{.5f, -.5f, -0.5f}, {.1f, .8f, .1f}},      //24     
-                };
-
-                if (glm::dot(offset, offset) > std::numeric_limits<float>::epsilon())
-                    for (auto& v : modelBuilder.vertices) {
-                        v.position += offset;
-                    }
-                
-                modelBuilder.indices = {0,  1,  2,  0,  3,  1,  4,  5,  6,  4,  7,  5,  8,  9,  10, 8,  11, 9,
-                                        12, 13, 14, 12, 15, 13, 16, 17, 18, 16, 19, 17, 20, 21, 22, 20, 23, 21};
-                
-                return std::make_unique<Model>(device, modelBuilder);
-            }
-
             void loadGameObjects()
             {
-                std::shared_ptr<Model> model = createCubeModel(ors_Device, {0.f, 0.f, 0.f});
-
-                for (int i = -1; i < 2; i++)
-                {
-                    if(!i) continue;
-
-                    GameObject cube = GameObject::createGameObject();
-                    
-                    cube.model = model;
-                    cube.transform.translation = {-i, 0.f, 2.5f};
-                    cube.transform.scale = {0.5f, 0.5f, 0.5f};
-                    gameObjects.push_back(std::move(cube));
-                }
+                std::shared_ptr<Model> model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/flat_vase.obj");
+                
+                
+                GameObject gameObj = GameObject::createGameObject();
+                
+                gameObj.model = model;
+                gameObj.transform.translation = {0.f, 0.5f, 2.5f};
+                gameObj.transform.scale = glm::vec3(3.f);
+                gameObjects.push_back(std::move(gameObj));
+                
+                model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/cube.obj");
+                gameObj = GameObject::createGameObject();
+                
+                gameObj.model = model;
+                gameObj.transform.translation = {1.f, -3.5, -1.f};
+                gameObj.transform.scale = glm::vec3(0.05f);
+                gameObjects.push_back(std::move(gameObj));
+                
             }
 
 

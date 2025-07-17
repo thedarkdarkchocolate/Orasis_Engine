@@ -1,19 +1,31 @@
 #version 450
 
+// ---- IN ATTRIBUTES -----
 layout(location = 0) in vec3 aPos;
-layout(location = 1) in vec3 color;
+layout(location = 1) in vec3 aColor;
+layout(location = 2) in vec3 aNormal;
+layout(location = 3) in vec2 aUV;
 
+// ---- OUT ATTRIBUTES -----
 layout(location = 0) out vec3 fragColor;
+layout(location = 1) out vec3 normal;
+layout(location = 2) out vec3 fragPos;
 
 
 // Push constant struct
 layout(push_constant) uniform Push {
-    mat4 transform;
-    vec3 color;
+    mat4 transform;     // projection * view * world(model)
+    mat4 model;         // transformation matrix from local to world space for model
 } push;
 
+// Local variables
+
 void main() {
+
     gl_Position = push.transform * vec4(aPos, 1.f);
 
-    fragColor = color;
+    
+    fragColor = aColor;
+    normal = normalize(aNormal);
+    fragPos = vec3(push.model * vec4(aPos, 1.f));
 }

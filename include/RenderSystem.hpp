@@ -9,6 +9,7 @@
 #include "Device.hpp"
 #include "Pipeline.hpp"
 #include "GameObject.hpp"
+#include "Frame_Info.hpp"
 
 #include <memory>
 #include <vector>
@@ -20,7 +21,7 @@ namespace Orasis {
     struct SimplePushConstantData 
     {
         glm::mat4 transform{1.f};
-        alignas(16) glm::vec3 color;
+        glm::mat4 modelMatrix{1.f};
     };
 
     class RenderSystem {
@@ -64,21 +65,25 @@ namespace Orasis {
 
         
 
-        void renderGameObjects(VkCommandBuffer commandBuffer, std::vector<GameObject>& gameObjects, const Camera& camera)
+        void renderGameObjects(FrameInfo& frameInfo, std::vector<GameObject>& gameObjects)
         {
+            // Instansiating camera and cmdBuffer from frame info
+            Camera camera = frameInfo.camera;
+            VkCommandBuffer commandBuffer = frameInfo.cmdBuffer;
+
             ors_Pipeline->bind(commandBuffer);
+
             
             glm::mat4 projectionView = camera.getProjection() * camera.getViewMatrix();
 
             for (GameObject& obj: gameObjects)
             {
 
-                obj.transform.rotation.y = glm::mod(obj.transform.rotation.y + 0.01f, glm::two_pi<float>());
-                obj.transform.rotation.x = glm::mod(obj.transform.rotation.x + 0.005f, glm::two_pi<float>());
-
                 SimplePushConstantData push{};
-                push.transform = projectionView * obj.transform.mat4();
-                push.color = obj.color;
+
+                glm::mat4 modelMatrix = obj.transform.mat4();
+                push.transform = projectionView * modelMatrix;
+                push.modelMatrix = modelMatrix;
 
                 vkCmdPushConstants (
                     commandBuffer,
