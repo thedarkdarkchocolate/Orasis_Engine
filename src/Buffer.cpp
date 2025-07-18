@@ -57,8 +57,8 @@ namespace Orasis {
      * @return VkResult of the buffer mapping call
      */
     VkResult Buffer::map(VkDeviceSize size, VkDeviceSize offset) {
-    assert(buffer && memory && "Called map on buffer before create");
-    return vkMapMemory(device.device(), memory, offset, size, 0, &mapped);
+        assert(buffer && memory && "Called map on buffer before create");
+        return vkMapMemory(device.device(), memory, offset, size, 0, &mapped);
     }
     
     /**
@@ -106,12 +106,12 @@ namespace Orasis {
      * @return VkResult of the flush call
      */
     VkResult Buffer::flush(VkDeviceSize size, VkDeviceSize offset) {
-    VkMappedMemoryRange mappedRange = {};
-    mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    mappedRange.memory = memory;
-    mappedRange.offset = offset;
-    mappedRange.size = size;
-    return vkFlushMappedMemoryRanges(device.device(), 1, &mappedRange);
+        VkMappedMemoryRange mappedRange = {};
+        mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+        mappedRange.memory = memory;
+        mappedRange.offset = offset;
+        mappedRange.size = size;
+        return vkFlushMappedMemoryRanges(device.device(), 1, &mappedRange);
     }
     
     /**
@@ -126,12 +126,12 @@ namespace Orasis {
      * @return VkResult of the invalidate call
      */
     VkResult Buffer::invalidate(VkDeviceSize size, VkDeviceSize offset) {
-    VkMappedMemoryRange mappedRange = {};
-    mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
-    mappedRange.memory = memory;
-    mappedRange.offset = offset;
-    mappedRange.size = size;
-    return vkInvalidateMappedMemoryRanges(device.device(), 1, &mappedRange);
+        VkMappedMemoryRange mappedRange = {};
+        mappedRange.sType = VK_STRUCTURE_TYPE_MAPPED_MEMORY_RANGE;
+        mappedRange.memory = memory;
+        mappedRange.offset = offset;
+        mappedRange.size = size;
+        return vkInvalidateMappedMemoryRanges(device.device(), 1, &mappedRange);
     }
     
     /**
@@ -143,11 +143,7 @@ namespace Orasis {
      * @return VkDescriptorBufferInfo of specified offset and range
      */
     VkDescriptorBufferInfo Buffer::descriptorInfo(VkDeviceSize size, VkDeviceSize offset) {
-    return VkDescriptorBufferInfo{
-        buffer,
-        offset,
-        size,
-    };
+        return VkDescriptorBufferInfo{buffer,offset,size};
     }
     
     /**
@@ -158,7 +154,7 @@ namespace Orasis {
      *
      */
     void Buffer::writeToIndex(void *data, int index) {
-    writeToBuffer(data, instanceSize, index * alignmentSize);
+        writeToBuffer(data, instanceSize, index * alignmentSize);
     }
     
     /**
@@ -177,7 +173,7 @@ namespace Orasis {
      * @return VkDescriptorBufferInfo for instance at index
      */
     VkDescriptorBufferInfo Buffer::descriptorInfoForIndex(int index) {
-    return descriptorInfo(alignmentSize, index * alignmentSize);
+        return descriptorInfo(alignmentSize, index * alignmentSize);
     }
     
     /**
@@ -190,7 +186,7 @@ namespace Orasis {
      * @return VkResult of the invalidate call
      */
     VkResult Buffer::invalidateIndex(int index) {
-    return invalidate(alignmentSize, index * alignmentSize);
+        return invalidate(alignmentSize, index * alignmentSize);
     }
  
 }  

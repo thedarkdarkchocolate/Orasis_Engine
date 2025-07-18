@@ -12,12 +12,14 @@ namespace Orasis {
 
             VkCommandBuffer cmdBuffer;
             Camera camera;
+            VkDescriptorSet globalDescriptorSet;
             int frameIndex;
             float dt;
 
-            FrameInfo (VkCommandBuffer other_cmdBuffer,  Camera other_camera, int other_frameIndex, float other_dt)
+            FrameInfo (VkCommandBuffer other_cmdBuffer,  Camera other_camera, VkDescriptorSet other_globalDescriptorSet, int other_frameIndex, float other_dt)
             :cmdBuffer{other_cmdBuffer},
              camera{other_camera},
+             globalDescriptorSet{other_globalDescriptorSet},
              frameIndex{other_frameIndex},
              dt{other_dt}
             {}

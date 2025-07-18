@@ -11,10 +11,13 @@ layout(location = 0) out vec3 fragColor;
 layout(location = 1) out vec3 normal;
 layout(location = 2) out vec3 fragPos;
 
+layout(set = 0, binding = 0) uniform GlobalUbo {
+    mat4 projection;
+    vec3 lightPos;
+} ubo;
 
 // Push constant struct
 layout(push_constant) uniform Push {
-    mat4 transform;     // projection * view * world(model)
     mat4 model;         // transformation matrix from local to world space for model
 } push;
 
@@ -22,7 +25,7 @@ layout(push_constant) uniform Push {
 
 void main() {
 
-    gl_Position = push.transform * vec4(aPos, 1.f);
+    gl_Position = ubo.projection * push.model * vec4(aPos, 1.f);
 
     
     fragColor = aColor;

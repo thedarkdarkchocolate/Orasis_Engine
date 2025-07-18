@@ -6,18 +6,20 @@ layout (location = 2) in vec3 fragPos;
 
 layout (location = 0) out vec4 outColor;
 
+layout(set = 0, binding = 0) uniform GlobalUbo {
+    mat4 projection;
+    vec3 lightPos;
+} ubo;
+
+
 layout(push_constant) uniform Push {
-    mat4 transform; // projection * view * world(model)
-    mat4 modelMatrix;
+    mat4 model;
 } push;
 
 
-// Local variables
-vec3 lightPos = {1.f, -3.5, -1.f};
-
 void main() {
 
-    vec3 lightDir = normalize(lightPos - fragPos);
+    vec3 lightDir = normalize(ubo.lightPos - fragPos);
 
     float diffuse = max(dot(lightDir, normal), 0);
     

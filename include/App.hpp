@@ -5,13 +5,11 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/constants.hpp>
 
-#include "Camera.hpp"
-#include "Window.hpp"
 #include "Render.hpp"
 #include "GameObject.hpp"
 #include "RenderSystem.hpp"
 #include "Kmb_movement_controller.hpp"
-#include "Buffer.hpp"
+#include "Descriptors.hpp"
 
 #include <memory>
 #include <chrono>
@@ -22,8 +20,8 @@
 namespace Orasis {
 
     struct UBO_struct {
-        glm::mat4 projectionView{1.f};
-        glm::vec3 lightPos = {1.f, -3.5, -1.f};
+        alignas(16) glm::mat4 projectionView{1.f};
+        alignas(16) glm::vec3 lightPos = {1.f, -3.5, -1.f};
     };
 
 
@@ -34,11 +32,17 @@ namespace Orasis {
 
         static constexpr int WIDTH = 800;
         static constexpr int HEIGHT = 600;
+
         Window ors_Window{WIDTH, HEIGHT, "AAApp!!"};
         Device ors_Device{ors_Window};
         Render ors_Render{ors_Window, ors_Device};
+
+        // Order of decleration matters (Variable get created from top to bottom and destroyed in the reverse)
+        // we need the global pool to be destroyed before the device
+        std::unique_ptr<DescriptorPool> globalPool{};
         std::vector<GameObject> gameObjects;
         
+
         // -------- -------- -------- -------- //
 
 
@@ -48,6 +52,14 @@ namespace Orasis {
 
             App()
             {
+                
+                // Order of method chain is from top to bottom
+                globalPool = 
+                    DescriptorPool::Builder(ors_Device)                                         
+                        .setMaxSets(SwapChain::MAX_FRAMES_IN_FLIGHT)
+                        .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT)
+                        .build();
+                
                 loadGameObjects();
             }
 
@@ -67,6 +79,7 @@ namespace Orasis {
 
             void run() {
 
+                // Creating a total number of buffers as the number of frames in flight (each for every frame) 
                 std::vector<std::unique_ptr<Buffer>> uniformBuffers (SwapChain::MAX_FRAMES_IN_FLIGHT);
 
                 for (int i = 0; i < uniformBuffers.size(); i++)
@@ -77,13 +90,28 @@ namespace Orasis {
                         sizeof(UBO_struct),
                         1,
                         VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
+                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,        // Need to use this bit if we dont manually flush the buffers to the device VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
                         ors_Device.properties.limits.minUniformBufferOffsetAlignment
                     );
                     uniformBuffers[i]->map();    // Enables writing on the buffer
                 }
 
-                RenderSystem renderSys{ors_Device, ors_Render.getSwapChainRenderPass()};   
+                // Configuring Descriptor Layout Info
+                auto gloabalSetLayout = DescriptorSetLayout::Builder(ors_Device)
+                                        .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+                                        .build();
+                
+                std::vector<VkDescriptorSet> globalDescriptorSets(SwapChain::MAX_FRAMES_IN_FLIGHT);
+
+                for(int i = 0; i < globalDescriptorSets.size(); i ++)
+                {
+                    auto bufferInfo = uniformBuffers[i]->descriptorInfo();
+                    DescriptorWriter(*gloabalSetLayout, *globalPool)
+                        .writeBuffer(0, &bufferInfo)
+                        .build(globalDescriptorSets[i]);
+                }
+
+                RenderSystem renderSys{ors_Device, ors_Render.getSwapChainRenderPass(), gloabalSetLayout->getDescriptorSetLayout()};   
 
                 Camera camera{};
                 KmbMovementController cameraController{};
@@ -117,6 +145,7 @@ namespace Orasis {
                         FrameInfo frameInfo {
                             cmndBuffer,
                             camera,
+                            globalDescriptorSets[frameIndex],
                             frameIndex,
                             dt
                         };
@@ -126,7 +155,7 @@ namespace Orasis {
                         ubo_s.projectionView = camera.getProjection() * camera.getViewMatrix();
                         
                         uniformBuffers[frameIndex]->writeToBuffer(&ubo_s);
-                        uniformBuffers[frameIndex]->flush(frameIndex);
+                        uniformBuffers[frameIndex]->flush();
 
                         // Render
                         

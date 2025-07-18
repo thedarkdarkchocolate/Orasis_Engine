@@ -20,7 +20,6 @@ namespace Orasis {
 
     struct SimplePushConstantData 
     {
-        glm::mat4 transform{1.f};
         glm::mat4 modelMatrix{1.f};
     };
 
@@ -39,11 +38,11 @@ namespace Orasis {
 
         // -------- CONSTRUCTOR etc -------- //
 
-        RenderSystem(Device& device, VkRenderPass renderPass)
+        RenderSystem(Device& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
         :ors_Device{device}
         {
 
-            createPipelineLayout();
+            createPipelineLayout(globalSetLayout);
             createPipeline(renderPass);
         }
 
@@ -73,8 +72,15 @@ namespace Orasis {
 
             ors_Pipeline->bind(commandBuffer);
 
+            vkCmdBindDescriptorSets(
+                frameInfo.cmdBuffer,
+                VK_PIPELINE_BIND_POINT_GRAPHICS,
+                pipelineLayout,
+                0, 1,
+                &frameInfo.globalDescriptorSet,
+                0, nullptr
+            );
             
-            glm::mat4 projectionView = camera.getProjection() * camera.getViewMatrix();
 
             for (GameObject& obj: gameObjects)
             {
@@ -82,7 +88,6 @@ namespace Orasis {
                 SimplePushConstantData push{};
 
                 glm::mat4 modelMatrix = obj.transform.mat4();
-                push.transform = projectionView * modelMatrix;
                 push.modelMatrix = modelMatrix;
 
                 vkCmdPushConstants (
@@ -103,7 +108,7 @@ namespace Orasis {
 
         private:
 
-        void createPipelineLayout() 
+        void createPipelineLayout(VkDescriptorSetLayout globalSetLayout) 
         {
 
             
@@ -112,10 +117,12 @@ namespace Orasis {
             pushConstantRange.offset = 0;
             pushConstantRange.size = sizeof(SimplePushConstantData);  
 
+             std::vector<VkDescriptorSetLayout> descriptorSetLayout{globalSetLayout};
+
             VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
             pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-            pipelineLayoutInfo.setLayoutCount = 0;
-            pipelineLayoutInfo.pSetLayouts = nullptr;
+            pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayout.size());
+            pipelineLayoutInfo.pSetLayouts = descriptorSetLayout.data();
             pipelineLayoutInfo.pushConstantRangeCount = 1;
             pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
