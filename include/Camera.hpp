@@ -16,6 +16,7 @@ namespace Orasis {
 
         glm::mat4 projMatrix {1.f};
         glm::mat4 viewMatrix {1.f};
+        glm::vec3 cameraPos {0.f};
 
 
         public:
@@ -96,6 +97,18 @@ namespace Orasis {
             projMatrix[2][3] = 1.f;
             projMatrix[3][2] = -(far * near) / (far - near);
         }
+
+
+        void setCameraPos(glm::vec3 position)
+        {
+            cameraPos = position;
+        }
+
+
+        const glm::vec3 getCameraPos() const
+        {
+            return cameraPos;
+        } 
 
         const glm::mat4& getProjection() const
         {

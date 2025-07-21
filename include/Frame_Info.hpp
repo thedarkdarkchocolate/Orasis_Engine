@@ -1,10 +1,22 @@
 #pragma once
 
 #include "Camera.hpp"
+#include "GameObject.hpp"
 
 #include <vulkan/vulkan.h>
 
 namespace Orasis {
+
+
+    struct UBO_struct {
+        glm::mat4 projection{1.f};
+        glm::mat4 view{1.f};
+        alignas(16) glm::vec3 lightPos = {1.f, -3.5f, -1.f};
+        alignas(16) glm::vec3 lightColor = {1.f, 1.f, 1.f};
+        alignas(16) glm::vec3 cameraPos{};
+    };
+
+
 
     struct FrameInfo {
 
@@ -13,15 +25,17 @@ namespace Orasis {
             VkCommandBuffer cmdBuffer;
             Camera camera;
             VkDescriptorSet globalDescriptorSet;
+            GameObject::uMap& gameObjects;
             int frameIndex;
             float dt;
 
-            FrameInfo (VkCommandBuffer other_cmdBuffer,  Camera other_camera, VkDescriptorSet other_globalDescriptorSet, int other_frameIndex, float other_dt)
-            :cmdBuffer{other_cmdBuffer},
-             camera{other_camera},
-             globalDescriptorSet{other_globalDescriptorSet},
-             frameIndex{other_frameIndex},
-             dt{other_dt}
+            FrameInfo (VkCommandBuffer o_cmdBuffer,  Camera o_camera, VkDescriptorSet o_globalDescriptorSet, GameObject::uMap& o_gameObjects, int o_frameIndex, float o_dt)
+            :cmdBuffer{o_cmdBuffer},
+             camera{o_camera},
+             globalDescriptorSet{o_globalDescriptorSet},
+             gameObjects{o_gameObjects},
+             frameIndex{o_frameIndex},
+             dt{o_dt}
             {}
     };
 

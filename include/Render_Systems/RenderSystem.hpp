@@ -64,7 +64,7 @@ namespace Orasis {
 
         
 
-        void renderGameObjects(FrameInfo& frameInfo, std::vector<GameObject>& gameObjects)
+        void renderGameObjects(FrameInfo& frameInfo)
         {
             // Instansiating camera and cmdBuffer from frame info
             Camera camera = frameInfo.camera;
@@ -82,8 +82,11 @@ namespace Orasis {
             );
             
 
-            for (GameObject& obj: gameObjects)
+            for (auto& kv: frameInfo.gameObjects)
             {
+                GameObject& obj = kv.second;
+
+                if (obj.model == nullptr) continue;
 
                 SimplePushConstantData push{};
 
@@ -117,7 +120,7 @@ namespace Orasis {
             pushConstantRange.offset = 0;
             pushConstantRange.size = sizeof(SimplePushConstantData);  
 
-             std::vector<VkDescriptorSetLayout> descriptorSetLayout{globalSetLayout};
+            std::vector<VkDescriptorSetLayout> descriptorSetLayout{globalSetLayout};
 
             VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
             pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;

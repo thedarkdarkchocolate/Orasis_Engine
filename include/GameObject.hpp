@@ -5,7 +5,7 @@
 #include <glm/gtc/matrix_transform.hpp>
 
 #include <memory>
-
+#include <unordered_map>
 
 
 namespace Orasis {
@@ -47,6 +47,10 @@ namespace Orasis {
           }
     };
     
+    struct PointLightComponent {
+       float intensity = 1.f; 
+    };
+
     
     class GameObject
     {
@@ -54,11 +58,14 @@ namespace Orasis {
         public:
 
             using uint = unsigned int;
+            using uMap = std::unordered_map<uint, GameObject>;
             
             uint id;
             std::shared_ptr<Model> model{};
             glm::vec3 color;
             TransformComponent transform{};
+
+            std::unique_ptr<PointLightComponent> pointLight = nullptr;
         
         
         private:
@@ -88,6 +95,18 @@ namespace Orasis {
             uint getID() const
             {
                 return id;
+            }
+
+            static GameObject makePointLight(float intensity = 10.f, float radius = 0.1f, glm::vec3 color = glm::vec3(1.f))
+            {
+                GameObject gameObj = GameObject::createGameObject();
+                gameObj.color = color;
+                gameObj.transform.scale.x = radius;
+                gameObj.pointLight = std::make_unique<PointLightComponent>();
+                gameObj.pointLight->intensity = intensity;
+
+                return gameObj;
+
             }
             
 

@@ -17,18 +17,7 @@ namespace Orasis {
 
 
     class Model {
-        
-        Device& ors_Device;
-        bool hasIndexBuffer {false};
 
-        // Vertex Buffer, memory, count
-        std::unique_ptr<Buffer> vertexBuffer;
-        uint32_t vertexCount;
-        
-        // Index Buffer, memory, count
-        std::unique_ptr<Buffer> indexBuffer;
-        uint32_t indexCount;
-        
         
         public:
         
@@ -79,6 +68,20 @@ namespace Orasis {
 
             };
 
+        private:
+                        
+            Device& ors_Device;
+            bool hasIndexBuffer {false};
+
+            // Vertex Buffer, memory, count
+            std::unique_ptr<Buffer> vertexBuffer;
+            uint32_t vertexCount;
+            
+            // Index Buffer, memory, count
+            std::unique_ptr<Buffer> indexBuffer;
+            uint32_t indexCount;
+        
+        public:    
             
             
             Model(Device& device, const Builder& builder)

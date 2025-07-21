@@ -1,28 +1,8 @@
 #pragma once
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/constants.hpp>
-
-#include "Render.hpp"
-#include "GameObject.hpp"
-#include "RenderSystem.hpp"
-#include "Kmb_movement_controller.hpp"
-#include "Descriptors.hpp"
-
-#include <memory>
-#include <chrono>
-#include <vector>
-#include <stdexcept>
-#include <array>
+#include "Header_Includes/App_Header.hpp"
 
 namespace Orasis {
-
-    struct UBO_struct {
-        alignas(16) glm::mat4 projectionView{1.f};
-        alignas(16) glm::vec3 lightPos = {1.f, -3.5, -1.f};
-    };
 
 
 
@@ -33,14 +13,14 @@ namespace Orasis {
         static constexpr int WIDTH = 800;
         static constexpr int HEIGHT = 600;
 
-        Window ors_Window{WIDTH, HEIGHT, "AAApp!!"};
+        Window ors_Window{WIDTH, HEIGHT, "Orasis Engine"};
         Device ors_Device{ors_Window};
         Render ors_Render{ors_Window, ors_Device};
 
         // Order of decleration matters (Variable get created from top to bottom and destroyed in the reverse)
         // we need the global pool to be destroyed before the device
         std::unique_ptr<DescriptorPool> globalPool{};
-        std::vector<GameObject> gameObjects;
+        GameObject::uMap gameObjects;
         
 
         // -------- -------- -------- -------- //
@@ -112,6 +92,7 @@ namespace Orasis {
                 }
 
                 RenderSystem renderSys{ors_Device, ors_Render.getSwapChainRenderPass(), gloabalSetLayout->getDescriptorSetLayout()};   
+                PointLightSystem pointLightSys{ors_Device, ors_Render.getSwapChainRenderPass(), gloabalSetLayout->getDescriptorSetLayout()};   
 
                 Camera camera{};
                 KmbMovementController cameraController{};
@@ -134,25 +115,28 @@ namespace Orasis {
                     float aspect = ors_Render.getAspectRatio();
                     cameraController.moveInPlaneXZ(ors_Window.getWindow(), cameraObj, dt);
                     camera.setViewYXZ(cameraObj.transform.translation, cameraObj.transform.rotation);
-
+                    camera.setCameraPos(cameraObj.transform.translation);
                     camera.setPrespectiveProjection(glm::radians(60.f), aspect, 0.1f, 100.f);
                     
                     if (VkCommandBuffer cmndBuffer = ors_Render.beginFrame())
                     {
                         int frameIndex = ors_Render.getFrameIndex();
 
-                        // Update Frame Info
+                        // Updating Frame Info
                         FrameInfo frameInfo {
                             cmndBuffer,
                             camera,
                             globalDescriptorSets[frameIndex],
+                            gameObjects,
                             frameIndex,
                             dt
                         };
 
                         // Update UBO
                         UBO_struct ubo_s{};
-                        ubo_s.projectionView = camera.getProjection() * camera.getViewMatrix();
+                        ubo_s.projection = camera.getProjection();
+                        ubo_s.view = camera.getViewMatrix();
+                        ubo_s.cameraPos = camera.getCameraPos();
                         
                         uniformBuffers[frameIndex]->writeToBuffer(&ubo_s);
                         uniformBuffers[frameIndex]->flush();
@@ -160,7 +144,10 @@ namespace Orasis {
                         // Render
                         
                         ors_Render.startSwapChainRenderPass(cmndBuffer);
-                        renderSys.renderGameObjects(frameInfo, gameObjects);
+
+                        renderSys.renderGameObjects(frameInfo);
+                        // pointLightSys.render(frameInfo);
+
                         ors_Render.endSwapChainRenderPass(cmndBuffer);
                         ors_Render.endFrame();
 
@@ -178,23 +165,27 @@ namespace Orasis {
 
             void loadGameObjects()
             {
-                std::shared_ptr<Model> model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/flat_vase.obj");
-                
-                
-                GameObject gameObj = GameObject::createGameObject();
-                
-                gameObj.model = model;
-                gameObj.transform.translation = {0.f, 0.5f, 2.5f};
-                gameObj.transform.scale = glm::vec3(3.f);
-                gameObjects.push_back(std::move(gameObj));
+                std::shared_ptr<Model> model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/smooth_vase.obj");
+                GameObject smoothVase = GameObject::createGameObject();
+                smoothVase.model = model;
+                smoothVase.transform.translation = {0.f, 0.5f, 2.5f};
+                smoothVase.transform.scale = glm::vec3(3.f);
+                gameObjects.emplace(smoothVase.getID(), std::move(smoothVase));
                 
                 model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/cube.obj");
-                gameObj = GameObject::createGameObject();
+                GameObject cube = GameObject::createGameObject();
+                cube.model = model;
+                cube.transform.translation = {1.f, -3.5, -1.f};
+                cube.transform.scale = glm::vec3(0.05f);
+                cube.color = glm::vec3(1.f);
+                gameObjects.emplace(cube.getID(), std::move(cube));
                 
-                gameObj.model = model;
-                gameObj.transform.translation = {1.f, -3.5, -1.f};
-                gameObj.transform.scale = glm::vec3(0.05f);
-                gameObjects.push_back(std::move(gameObj));
+                model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/quad.obj");
+                GameObject quad = GameObject::createGameObject();
+                quad.model = model;
+                quad.transform.translation = {1.f, 1.f, -1.f};
+                quad.transform.scale = glm::vec3(10);
+                gameObjects.emplace(quad.getID(), std::move(quad));
                 
             }
 
