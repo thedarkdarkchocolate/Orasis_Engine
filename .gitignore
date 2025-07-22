@@ -3,3 +3,9 @@
 /shaders/compiledShaders
 /dependacies/third_party
 dependacies/imgui
+
+
+Temp files to exclude 
+
+include/RenderPass.hpp
+src/RenderPass.cpp
