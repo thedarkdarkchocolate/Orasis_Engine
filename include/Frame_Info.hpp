@@ -16,6 +16,12 @@ namespace Orasis {
         alignas(16) glm::vec3 cameraPos{};
     };
 
+    struct UI_Info {
+
+        float dt;
+
+    };
+
 
 
     struct FrameInfo {

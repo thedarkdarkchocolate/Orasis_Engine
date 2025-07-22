@@ -72,6 +72,7 @@ namespace Orasis {
     VkFramebuffer getFrameBuffer(int index) { return swapChainFramebuffers[index]; }
     VkRenderPass getRenderPass() { return renderPass; }
     VkImageView getImageView(int index) { return swapChainImageViews[index]; }
+    VkFormat getSwapChainImageFormat() {return swapChainImageFormat;}
     size_t imageCount() { return swapChainImages.size(); }
     VkFormat getSwapChainImageFormat() { return swapChainImageFormat; }
     VkExtent2D getSwapChainExtent() { return swapChainExtent; }

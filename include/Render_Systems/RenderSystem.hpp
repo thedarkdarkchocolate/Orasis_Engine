@@ -28,6 +28,7 @@ namespace Orasis {
         RenderSystem(Device& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
         :ors_Device{device}
         {
+            
             createPipelineLayout(globalSetLayout);
             createPipeline(renderPass);
         }

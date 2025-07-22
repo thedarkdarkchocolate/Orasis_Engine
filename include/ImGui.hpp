@@ -18,6 +18,8 @@ namespace Orasis {
         VkRenderPass m_renderPass;
         VkDescriptorPool imguiPool = VK_NULL_HANDLE;
 
+        UI_Info m_info{};
+
 
 
         public:
@@ -97,9 +99,8 @@ namespace Orasis {
             void render(VkCommandBuffer commandBuffer) {
                 
                 ImGui::Begin("Kappa");
-
-                ImGui::Text("GUI TEST");
-                
+                ImGui::SetWindowPos(ImVec2(-1, 1));
+                ImGui::Text("%2f ms ", m_info.dt);
                 ImGui::End();
 
                 ImGui::Render();
@@ -112,6 +113,11 @@ namespace Orasis {
                 ImGui_ImplGlfw_NewFrame();
                 ImGui::NewFrame();
 
+            }
+
+            void updateInfo(UI_Info info)
+            {
+                m_info = std::move(info);
             }
 
 

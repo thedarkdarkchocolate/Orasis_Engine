@@ -10,8 +10,8 @@ namespace Orasis {
 
         // -------- MEMBER VARIABLES -------- //
 
-        static constexpr int WIDTH = 800;
-        static constexpr int HEIGHT = 600;
+        static constexpr int WIDTH = 1000;
+        static constexpr int HEIGHT = 800;
 
         Window ors_Window{WIDTH, HEIGHT, "Orasis Engine"};
         Device ors_Device{ors_Window};
@@ -142,6 +142,9 @@ namespace Orasis {
                             frameIndex,
                             dt
                         };
+
+                        if(frameIndex%2)
+                            ui->updateInfo({(dt*1000.f)});
 
                         // Update UBO
                         UBO_struct ubo_s{};
