@@ -1,3 +1,5 @@
 /build
 /.vscode
 /shaders/compiledShaders
+/dependacies/third_party
+dependacies/imgui

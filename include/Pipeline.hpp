@@ -47,24 +47,44 @@ namespace Orasis {
         
         Device& ors_Device;
         VkPipeline graphicsPipeline;
+        VkPipeline computePipeline;
         VkShaderModule vertShaderModule;
         VkShaderModule fragShaderModule;
+        VkShaderModule computeShaderModule;
+        
 
         public:
 
         Pipeline(Device& ors_Device , const std::string& vertFilePath, const std::string& fragFilePath, const PipelineConfigInfo& configInfo)
         : ors_Device(ors_Device)
         {
+            computeShaderModule = nullptr;
             createGraphicsPipeline(vertFilePath, fragFilePath, configInfo);
+        }
+        
+        Pipeline(Device& ors_Device , const std::string& computeFilePath, const PipelineConfigInfo& configInfo)
+        : ors_Device(ors_Device)
+        {
+            createComputePipeline(computeFilePath, configInfo);
         }
 
         Pipeline() = default;
 
         ~Pipeline() 
         {
-            vkDestroyShaderModule(ors_Device.device(), vertShaderModule, nullptr);
-            vkDestroyShaderModule(ors_Device.device(), fragShaderModule, nullptr);
-            vkDestroyPipeline(ors_Device.device(), graphicsPipeline, nullptr);
+            if (computeShaderModule == nullptr)
+            {
+                vkDestroyShaderModule(ors_Device.device(), vertShaderModule, nullptr);
+                vkDestroyShaderModule(ors_Device.device(), fragShaderModule, nullptr);
+                vkDestroyPipeline(ors_Device.device(), graphicsPipeline, nullptr);
+            }
+            else 
+            {
+                vkDestroyShaderModule(ors_Device.device(), computeShaderModule, nullptr);
+                vkDestroyPipeline(ors_Device.device(), computePipeline, nullptr);
+
+            }
+
         };
 
 
@@ -243,8 +263,33 @@ namespace Orasis {
             if (vkCreateGraphicsPipelines(ors_Device.device(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS)
                 throw std::runtime_error("failed to create graphics pipeline");
 
-
         }
+
+        void createComputePipeline(const std::string& computeFilePath, const PipelineConfigInfo& configInfo)
+        {
+            assert(configInfo.pipelineLayout != VK_NULL_HANDLE && "Cannot create graphics pipeline: no pipeline layout provided");
+
+            auto computeCode = readFile(computeFilePath);
+
+            createShaderModule(computeCode, &computeShaderModule);
+
+            VkPipelineShaderStageCreateInfo computeStage{};
+            computeStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+            computeStage.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+            computeStage.module = computeShaderModule;
+            computeStage.pName = "main";
+            computeStage.flags = 0;
+            computeStage.pNext = nullptr;
+            computeStage.pSpecializationInfo = nullptr;
+
+            VkComputePipelineCreateInfo computeCreateInfo{};
+            computeCreateInfo.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO;
+            computeCreateInfo.stage = computeStage;
+            computeCreateInfo.layout = configInfo.pipelineLayout;
+
+            if (vkCreateComputePipelines(ors_Device.device(), VK_NULL_HANDLE, 1, &computeCreateInfo, nullptr, &computePipeline) != VK_SUCCESS)
+                throw std::runtime_error("failed to create compute pipeline");
+        }   
 
         void createShaderModule(const std::vector<char>& code,  VkShaderModule* shaderModule)
         {

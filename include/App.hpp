@@ -16,6 +16,8 @@ namespace Orasis {
         Window ors_Window{WIDTH, HEIGHT, "Orasis Engine"};
         Device ors_Device{ors_Window};
         Render ors_Render{ors_Window, ors_Device};
+        std::unique_ptr<UI> ui;
+
 
         // Order of decleration matters (Variable get created from top to bottom and destroyed in the reverse)
         // we need the global pool to be destroyed before the device
@@ -41,6 +43,10 @@ namespace Orasis {
                         .build();
                 
                 loadGameObjects();
+
+                ui = std::make_unique<UI>(ors_Device, ors_Window, ors_Render.getSwapChainRenderPass());
+
+
             }
 
             ~App()
@@ -77,29 +83,33 @@ namespace Orasis {
                 }
 
                 // Configuring Descriptor Layout Info
-                auto gloabalSetLayout = DescriptorSetLayout::Builder(ors_Device)
-                                        .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
-                                        .build();
+                std::unique_ptr<Orasis::DescriptorSetLayout> globalDiscrSetLayout = 
+                        DescriptorSetLayout::Builder(ors_Device)
+                            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+                            .build();
                 
                 std::vector<VkDescriptorSet> globalDescriptorSets(SwapChain::MAX_FRAMES_IN_FLIGHT);
 
                 for(int i = 0; i < globalDescriptorSets.size(); i ++)
                 {
-                    auto bufferInfo = uniformBuffers[i]->descriptorInfo();
-                    DescriptorWriter(*gloabalSetLayout, *globalPool)
+                    VkDescriptorBufferInfo bufferInfo = uniformBuffers[i]->descriptorInfo();
+                    DescriptorWriter(*globalDiscrSetLayout, *globalPool)
                         .writeBuffer(0, &bufferInfo)
                         .build(globalDescriptorSets[i]);
                 }
 
-                RenderSystem renderSys{ors_Device, ors_Render.getSwapChainRenderPass(), gloabalSetLayout->getDescriptorSetLayout()};   
-                PointLightSystem pointLightSys{ors_Device, ors_Render.getSwapChainRenderPass(), gloabalSetLayout->getDescriptorSetLayout()};   
-
+                // Systems Initialization
+                RenderSystem renderSys          {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};   
+                PointLightSystem pointLightSys  {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};   
+                ComputeSystem computeSys        {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};
+                
                 Camera camera{};
                 KmbMovementController cameraController{};
                 GameObject cameraObj = GameObject::createGameObject();
 
                 auto currTime = std::chrono::high_resolution_clock::now();
 
+                ui->init();
 
                 
                 while(!ors_Window.shouldClose())
@@ -111,6 +121,7 @@ namespace Orasis {
                     float dt = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currTime).count();
                     currTime = newTime;
                     
+                    ui->newFrame();
                     
                     float aspect = ors_Render.getAspectRatio();
                     cameraController.moveInPlaneXZ(ors_Window.getWindow(), cameraObj, dt);
@@ -146,14 +157,13 @@ namespace Orasis {
                         ors_Render.startSwapChainRenderPass(cmndBuffer);
 
                         renderSys.renderGameObjects(frameInfo);
-                        // pointLightSys.render(frameInfo);
-
+                        ui->render(cmndBuffer);
+                        
+                        
                         ors_Render.endSwapChainRenderPass(cmndBuffer);
                         ors_Render.endFrame();
 
                     }
-                    
-
                     
                 }
 

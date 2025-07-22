@@ -1,9 +1,27 @@
-C:\VulkanSDK\1.4.304.1\Bin\glslc.exe shaders\shader.vert -o shaders\compiledShaders\shader.vert.spv
-C:\VulkanSDK\1.4.304.1\Bin\glslc.exe shaders\shader.frag -o shaders\compiledShaders\shader.frag.spv
-C:\VulkanSDK\1.4.304.1\Bin\glslc.exe shaders\point_light.vert -o shaders\compiledShaders\point_light.vert.spv
-C:\VulkanSDK\1.4.304.1\Bin\glslc.exe shaders\point_light.frag -o shaders\compiledShaders\point_light.frag.spv
+@echo off
+setlocal enabledelayedexpansion
 
-if %ERRORLEVEL% NEQ 0 (
-    echo Shader compilation failed!
-    exit /b 1
+set GLSLC= C:\VulkanSDK\1.4.304.1\Bin\glslc.exe
+
+set SHADER_DIR=shaders
+set OUTPUT_DIR=shaders\compiledShaders
+
+echo Compiling all shaders in %SHADER_DIR% ...
+
+REM Loop through all shader files recursively
+for /r "%SHADER_DIR%" %%f in (*.vert *.frag *.comp *.geom *.tesc *.tese) do (
+    set FILENAME=%%~nf
+    set EXT=%%~xf
+    set OUTPUT=%OUTPUT_DIR%\!FILENAME!!EXT!.spv
+
+    echo Compiling %%f -> !OUTPUT!
+    %GLSLC% %%f -o !OUTPUT!
+
+    if errorlevel 1 (
+        echo [ERROR] Failed to compile %%f
+        exit /b 1
+    )
 )
+
+echo All shaders compiled successfully!
+exit /b 0

@@ -19,16 +19,41 @@ include_directories(include)
 include_directories(dependacies)
 include_directories(shaders)
 
-target_include_directories(${PROJECT_NAME} PUBLIC C:/VulkanSDK/1.4.304.1/Include)
-target_link_directories(${PROJECT_NAME} PUBLIC C:/VulkanSDK/1.4.304.1/Lib)
+# --- Add ImGui Sources ---
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dependacies/imgui)
+set(VULKAN_DIR PUBLIC C:/VulkanSDK/1.4.304.1)
 
-# find_package(ImGui-SFML CONFIG REQUIRED)
+target_include_directories(${PROJECT_NAME} ${VULKAN_DIR}/Include)
+target_link_directories(${PROJECT_NAME} ${VULKAN_DIR}/Lib)
+
+set(IMGUI_SOURCES
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_demo.cpp
+
+    ${IMGUI_DIR}/backends/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/backends/imgui_impl_vulkan.cpp
+)
+
+add_library(imgui STATIC ${IMGUI_SOURCES})
+
+target_include_directories(imgui PUBLIC
+    ${IMGUI_DIR}
+    ${IMGUI_DIR}/backends
+    ${VULKAN_DIR}
+)
+
+
+
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
-find_package(imgui CONFIG REQUIRED)
+# find_package(imgui CONFIG REQUIRED)
 
 
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw glm::glm vulkan-1)
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw glm::glm vulkan-1 imgui)
+target_link_libraries(imgui PRIVATE vulkan-1 glfw)
 
 
 # ImGui

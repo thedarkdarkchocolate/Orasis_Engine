@@ -5,12 +5,7 @@
 
 namespace Orasis {
 
-    struct SimplePushConstantData 
-    {
-        glm::mat4 modelMatrix{1.f};
-    };
-
-    class RenderSystem {
+    class ComputeSystem {
 
         // -------- MEMBER VARIABLES -------- //
 
@@ -25,20 +20,21 @@ namespace Orasis {
 
         // -------- CONSTRUCTOR etc -------- //
 
-        RenderSystem(Device& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
+        ComputeSystem(Device& device, VkRenderPass renderPass, VkDescriptorSetLayout globalSetLayout)
         :ors_Device{device}
         {
+
             createPipelineLayout(globalSetLayout);
             createPipeline(renderPass);
         }
 
-        ~RenderSystem()
+        ~ComputeSystem()
         {
             vkDestroyPipelineLayout(ors_Device.device(), pipelineLayout, nullptr);
         }
 
-        RenderSystem(const RenderSystem&) = delete;
-        RenderSystem &operator=(const RenderSystem&) = delete;
+        ComputeSystem(const ComputeSystem&) = delete;
+        ComputeSystem &operator=(const ComputeSystem&) = delete;
 
         // -------- -------- -------- -------- //
 
@@ -50,70 +46,35 @@ namespace Orasis {
 
         
 
-        void renderGameObjects(FrameInfo& frameInfo)
+        void dispatchCompute(FrameInfo& frameInfo, glm::vec3 groupCount)
         {
-            // Instansiating camera and cmdBuffer from frame info
-            Camera camera = frameInfo.camera;
             VkCommandBuffer commandBuffer = frameInfo.cmdBuffer;
 
             ors_Pipeline->bind(commandBuffer);
 
             vkCmdBindDescriptorSets(
-                frameInfo.cmdBuffer,
+                commandBuffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                 pipelineLayout,
                 0, 1,
                 &frameInfo.globalDescriptorSet,
                 0, nullptr
             );
-            
 
-            for (auto& kv: frameInfo.gameObjects)
-            {
-                GameObject& obj = kv.second;
-
-                if (obj.model == nullptr) continue;
-
-                SimplePushConstantData push{};
-
-                glm::mat4 modelMatrix = obj.transform.mat4();
-                push.modelMatrix = modelMatrix;
-
-                vkCmdPushConstants (
-                    commandBuffer,
-                    pipelineLayout,
-                    VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
-                    0,
-                    sizeof(SimplePushConstantData),
-                    &push
-                );
-
-                obj.model->bind(commandBuffer);
-                obj.model->draw(commandBuffer);
-            }
-
-
+            vkCmdDispatch(commandBuffer, groupCount.x, groupCount.y, groupCount.z);
         }
 
         private:
 
         void createPipelineLayout(VkDescriptorSetLayout globalSetLayout) 
         {
-
             
-            VkPushConstantRange pushConstantRange{};    
-            pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
-            pushConstantRange.offset = 0;
-            pushConstantRange.size = sizeof(SimplePushConstantData);  
-
             std::vector<VkDescriptorSetLayout> descriptorSetLayout{globalSetLayout};
 
             VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
             pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
             pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(descriptorSetLayout.size());
             pipelineLayoutInfo.pSetLayouts = descriptorSetLayout.data();
-            pipelineLayoutInfo.pushConstantRangeCount = 1;
-            pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
             if (vkCreatePipelineLayout(ors_Device.device(), &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS)
                 throw std::runtime_error("failed to create pipeline layout");   
@@ -127,14 +88,12 @@ namespace Orasis {
             Orasis::PipelineConfigInfo pipelineConfig{};
             Pipeline::defaultPipelineConfigInfo (pipelineConfig);
 
-            pipelineConfig.renderPass = renderPass;
             pipelineConfig.pipelineLayout = pipelineLayout;
 
             ors_Pipeline = std::make_unique<Pipeline>
             (
                 ors_Device,
-                "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/shaders/compiledShaders/shader.vert.spv",
-                "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/shaders/compiledShaders/shader.frag.spv",
+                "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/shaders/compiledShaders/compute.comp.spv",
                 pipelineConfig
             );
 

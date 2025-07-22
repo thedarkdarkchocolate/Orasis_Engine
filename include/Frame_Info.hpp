@@ -3,7 +3,7 @@
 #include "Camera.hpp"
 #include "GameObject.hpp"
 
-#include <vulkan/vulkan.h>
+#include "third_party/include/vulkan/vulkan.h"
 
 namespace Orasis {
 

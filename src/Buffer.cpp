@@ -32,9 +32,8 @@ namespace Orasis {
         VkMemoryPropertyFlags memoryPropertyFlags,
         VkDeviceSize minOffsetAlignment
     )
-
-        : device{device}, instanceSize{instanceSize}, instanceCount{instanceCount},
-        usageFlags{usageFlags}, memoryPropertyFlags{memoryPropertyFlags}
+    : device{device}, instanceSize{instanceSize}, instanceCount{instanceCount},
+    usageFlags{usageFlags}, memoryPropertyFlags{memoryPropertyFlags}
     {
         alignmentSize = getAlignment(instanceSize, minOffsetAlignment);
         bufferSize = alignmentSize * instanceCount;
