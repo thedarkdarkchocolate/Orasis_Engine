@@ -37,7 +37,9 @@ namespace Orasis {
     std::vector<VkFence> inFlightFences;
     std::vector<VkFence> imagesInFlight;
     size_t currentFrame = 0;
-
+    
+    // Deffered Variables
+    VkRenderPass defferedRenderPass;
     
 
     void init();
@@ -47,6 +49,13 @@ namespace Orasis {
     void createRenderPass();
     void createFramebuffers();
     void createSyncObjects();
+  
+    // Deffered Functions
+
+    void initDeffered();
+    void createDefferedRenderPass();
+
+    // End -> TODO: abstract the RenderPass creation and framebuffers
 
     // Helper functions
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);
@@ -66,8 +75,6 @@ namespace Orasis {
 
     SwapChain(const SwapChain &) = delete;
     SwapChain operator=(const SwapChain &) = delete;
-
-
 
     VkFramebuffer getFrameBuffer(int index) { return swapChainFramebuffers[index]; }
     VkRenderPass getRenderPass() { return renderPass; }

@@ -32,6 +32,16 @@ void SwapChain::init() {
   createSyncObjects();
 }
 
+// Deffered
+void SwapChain::initDeffered() {
+  createSwapChain();
+  createImageViews();
+  createRenderPass();
+  createDepthResources();
+  createFramebuffers();
+  createSyncObjects();
+}
+
 SwapChain::~SwapChain() {
   for (auto imageView : swapChainImageViews) {
     vkDestroyImageView(device.device(), imageView, nullptr);
@@ -332,6 +342,135 @@ void SwapChain::createRenderPass() {
     throw std::runtime_error("failed to create render pass!");
   }
 }
+
+
+void SwapChain::createDefferedRenderPass()
+{
+  // 3 attachments for the G-Buffer, 1 for Depth, 1 for the SwapChain framebuffer;
+  std::array<VkAttachmentDescription, 5> renderPassAttachments = {};
+
+  // ----- G_Buffer Position - 0 ------
+  renderPassAttachments[0].format           = VK_FORMAT_R16G16B16A16_SFLOAT;
+  renderPassAttachments[0].samples          = VK_SAMPLE_COUNT_1_BIT;
+  renderPassAttachments[0].loadOp           = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  renderPassAttachments[0].storeOp          = VK_ATTACHMENT_STORE_OP_STORE;
+  renderPassAttachments[0].stencilStoreOp   = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  renderPassAttachments[0].stencilLoadOp    = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+  renderPassAttachments[0].initialLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
+  renderPassAttachments[0].finalLayout      = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+  
+  // ----- G_Buffer Normals - 1 ------
+  renderPassAttachments[1] = renderPassAttachments[0];
+  renderPassAttachments[1].format = VK_FORMAT_R16G16B16A16_SFLOAT;
+  
+  
+  // ----- G_Buffer Albido - 2 ------
+  renderPassAttachments[2] = renderPassAttachments[0];
+  renderPassAttachments[2].format = VK_FORMAT_R8G8B8A8_UNORM;
+
+  // ----- Depth Attachment - 3 ------
+  renderPassAttachments[3].format         = findDepthFormat();
+  renderPassAttachments[3].samples        = VK_SAMPLE_COUNT_1_BIT;
+  renderPassAttachments[3].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  renderPassAttachments[3].storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+  renderPassAttachments[3].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+  renderPassAttachments[3].finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  
+  // ----- Frame Buffer Color Attachment - 4 ------
+  renderPassAttachments[4].format         = getSwapChainImageFormat();
+  renderPassAttachments[4].samples        = VK_SAMPLE_COUNT_1_BIT;
+  renderPassAttachments[4].loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+  renderPassAttachments[4].storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+  renderPassAttachments[4].initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+  renderPassAttachments[4].finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+
+
+
+  // ---- GEOMETRY SUBPASS ----- 
+  
+  std::array<VkAttachmentReference, 3> gBufferAttachmentRefs = {};
+  for (int i = 0; i < gBufferAttachmentRefs.size(); i++)
+  {
+    gBufferAttachmentRefs[i].attachment = i;
+    gBufferAttachmentRefs[i].layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+  }
+  
+  VkAttachmentReference depthAttachmentRef{};
+  depthAttachmentRef.attachment = 3;
+  depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  
+  VkSubpassDescription geometrySubpass = {};
+  geometrySubpass.pipelineBindPoint         = VK_PIPELINE_BIND_POINT_GRAPHICS;
+  geometrySubpass.colorAttachmentCount      = static_cast<uint32_t>(gBufferAttachmentRefs.size());
+  geometrySubpass.pColorAttachments         = gBufferAttachmentRefs.data();
+  geometrySubpass.pDepthStencilAttachment   = &depthAttachmentRef;
+
+  // ---------------------------
+  
+  // ---- LIGHTING SUBPASS ----- 
+  
+  std::array<VkAttachmentReference, 3> lightingInputAttachmentRefs = {};
+  for (int i = 0; i < lightingInputAttachmentRefs.size(); i++)
+  {
+    lightingInputAttachmentRefs[i].attachment = i;
+    lightingInputAttachmentRefs[i].layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+  }
+  
+  VkAttachmentReference frameBufferAtthacmentRef{};
+  frameBufferAtthacmentRef.attachment = 4;
+  frameBufferAtthacmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  
+  VkSubpassDescription lightingSubpass = {};
+  lightingSubpass.pipelineBindPoint         = VK_PIPELINE_BIND_POINT_GRAPHICS;
+  lightingSubpass.inputAttachmentCount      = static_cast<uint32_t>(lightingInputAttachmentRefs.size());
+  lightingSubpass.pColorAttachments         = lightingInputAttachmentRefs.data();
+  lightingSubpass.colorAttachmentCount      = 1;
+  lightingSubpass.pDepthStencilAttachment   = &frameBufferAtthacmentRef;  
+  
+  
+  // ---------------------------
+
+  std::array<VkSubpassDependency, 2> subpassDependancies = {};
+  
+  // External -> Geometry subpass
+  subpassDependancies[0].srcSubpass       = VK_SUBPASS_EXTERNAL;
+  subpassDependancies[0].srcStageMask     = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+  subpassDependancies[0].srcAccessMask    = VK_ACCESS_MEMORY_READ_BIT;
+
+  // External - > dst -> Geometry Subpass index 0
+  subpassDependancies[0].dstSubpass       = 0;
+  subpassDependancies[0].dstStageMask     = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  subpassDependancies[0].dstAccessMask    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+  subpassDependancies[0].dependencyFlags  = VK_DEPENDENCY_BY_REGION_BIT;
+  
+  // Geometry subpass -> Lighting Subpass
+  subpassDependancies[1].srcSubpass       = 0;
+  subpassDependancies[1].srcStageMask     = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+  subpassDependancies[1].srcAccessMask    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+  
+  // Geometry Subpass index 0 -> Lighting Subpass index 1
+  subpassDependancies[1].dstSubpass       = 1;
+  subpassDependancies[1].dstStageMask     = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+  subpassDependancies[1].dstAccessMask    = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+  subpassDependancies[1].dependencyFlags  = VK_DEPENDENCY_BY_REGION_BIT;
+  
+  std::array<VkSubpassDescription, 2> subPasses = {geometrySubpass, lightingSubpass};
+
+  VkRenderPassCreateInfo renderPassInfo = {};
+  renderPassInfo.sType              = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+  renderPassInfo.attachmentCount    = static_cast<uint32_t>(renderPassAttachments.size());
+  renderPassInfo.pAttachments       = renderPassAttachments.data();
+  renderPassInfo.subpassCount       = static_cast<uint32_t>(subPasses.size());
+  renderPassInfo.pSubpasses         = subPasses.data();
+  renderPassInfo.dependencyCount    = static_cast<uint32_t>(subpassDependancies.size());
+  renderPassInfo.pDependencies      = subpassDependancies.data();
+
+  if (vkCreateRenderPass(device.device(), &renderPassInfo, nullptr, &defferedRenderPass) != VK_SUCCESS) {
+    throw std::runtime_error("failed to create render pass!");
+  }
+
+}
+
 
 void SwapChain::createFramebuffers() {
   swapChainFramebuffers.resize(imageCount());

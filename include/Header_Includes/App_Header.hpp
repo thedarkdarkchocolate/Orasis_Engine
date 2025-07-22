@@ -13,6 +13,7 @@
 #include "Render_Systems/PointLightSystem.hpp"
 #include "Render_Systems/ComputeSystem.hpp"
 #include "ImGui.hpp"
+#include "RenderPass.hpp"
 
 #include <memory>
 #include <chrono>
