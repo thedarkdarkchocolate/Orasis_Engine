@@ -130,6 +130,7 @@ namespace Orasis {
 
             pipelineConfig.renderPass = renderPass;
             pipelineConfig.pipelineLayout = pipelineLayout;
+            pipelineConfig.PipelineCreationFlag = 0;
 
             ors_Pipeline = std::make_unique<Pipeline>
             (
