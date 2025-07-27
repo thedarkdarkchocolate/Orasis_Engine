@@ -12,6 +12,7 @@
 #include "Render_Systems/RenderSystem.hpp"
 #include "Render_Systems/PointLightSystem.hpp"
 #include "Render_Systems/ComputeSystem.hpp"
+#include "Render_Systems/DefferedSystem.hpp"
 #include "ImGui.hpp"
 #include "RenderPass.hpp"
 

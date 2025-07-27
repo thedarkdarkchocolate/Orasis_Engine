@@ -98,7 +98,7 @@ namespace Orasis {
             DescriptorPool(const DescriptorPool& ) = delete;
             DescriptorPool& operator=(const DescriptorPool& ) = delete;
             
-            bool allocateDescriptor(const VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet& descriptor) const;
+            bool allocateDescriptorSet(const VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet& descriptor) const;
             
             void freeDescriptors(std::vector<VkDescriptorSet>& descriptors) const;
             

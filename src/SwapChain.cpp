@@ -13,14 +13,16 @@ namespace Orasis {
 
 SwapChain::SwapChain(Device& deviceRef, VkExtent2D extent)
     : device{deviceRef}, windowExtent{extent} {
-  init();
-}
-
-SwapChain::SwapChain(
-    Device& deviceRef, VkExtent2D extent, std::shared_ptr<SwapChain> previous)
-    : device{deviceRef}, windowExtent{extent}, oldSwapChain{previous} {
-  init();
-  oldSwapChain = nullptr;
+    // init();
+    initDeffered();
+  }
+  
+  SwapChain::SwapChain(Device& deviceRef, VkExtent2D extent, std::shared_ptr<SwapChain> previous)
+  : device{deviceRef}, windowExtent{extent}, oldSwapChain{previous} {
+    
+    // init();
+    initDeffered();
+    oldSwapChain = nullptr;
 }
 
 void SwapChain::init() {
@@ -35,10 +37,11 @@ void SwapChain::init() {
 // Deffered
 void SwapChain::initDeffered() {
   createSwapChain();
-  createImageViews();
+  createDefferedImageViews();
+  createDefferedRenderPass();
   createRenderPass();
   createDepthResources();
-  createFramebuffers();
+  createDefferedFramebuffers();
   createSyncObjects();
 }
 
@@ -63,7 +66,26 @@ SwapChain::~SwapChain() {
     vkDestroyFramebuffer(device.device(), framebuffer, nullptr);
   }
 
+  
+  // --------------- Deffered ---------------
   vkDestroyRenderPass(device.device(), renderPass, nullptr);
+  for (int i = 0; i < positionImageViews.size(); i++) {
+    vkDestroyImageView(device.device(), positionImageViews[i], nullptr);
+    vkDestroyImage(device.device(), positionImages[i], nullptr);
+    vkFreeMemory(device.device(), positionMemory[i], nullptr);
+    
+    vkDestroyImageView(device.device(), normalImageViews[i], nullptr);
+    vkDestroyImage(device.device(), normalImages[i], nullptr);
+    vkFreeMemory(device.device(), normalMemory[i], nullptr);
+    
+    vkDestroyImageView(device.device(), albedoImageViews[i], nullptr);
+    vkDestroyImage(device.device(), albedoImages[i], nullptr);
+    vkFreeMemory(device.device(), albedoMemory[i], nullptr);
+
+    if (i == positionImageViews.size() - 1)
+      vkDestroyRenderPass(device.device(), defferedRenderPass, nullptr);
+  }
+  // --------------- Deffered ---------------
 
   // cleanup synchronization objects
   for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
@@ -150,8 +172,10 @@ void SwapChain::createSwapChain() {
   VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
   uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
+
   if (swapChainSupport.capabilities.maxImageCount > 0 &&
-      imageCount > swapChainSupport.capabilities.maxImageCount) {
+      imageCount > swapChainSupport.capabilities.maxImageCount) 
+  {
     imageCount = swapChainSupport.capabilities.maxImageCount;
   }
 
@@ -227,6 +251,127 @@ void SwapChain::createImageViews() {
     }
 
   }
+
+}
+
+// Deffered Image Views
+void SwapChain::createDefferedImageViews() {
+
+  swapChainImageViews.resize(swapChainImages.size());
+
+  positionImageViews.resize(imageCount());
+  normalImageViews.resize(imageCount());
+  albedoImageViews.resize(imageCount());
+
+  positionImages.resize(imageCount());
+  normalImages.resize(imageCount());
+  albedoImages.resize(imageCount());
+  
+  positionMemory.resize(imageCount());
+  normalMemory.resize(imageCount());
+  albedoMemory.resize(imageCount());
+
+  for (size_t i = 0; i < swapChainImages.size(); i++) {
+    
+    
+    VkImageViewCreateInfo viewInfo{};
+    viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    viewInfo.image = swapChainImages[i];
+    viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    viewInfo.format = swapChainImageFormat;
+    viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    viewInfo.subresourceRange.baseMipLevel = 0;
+    viewInfo.subresourceRange.levelCount = 1;
+    viewInfo.subresourceRange.baseArrayLayer = 0;
+    viewInfo.subresourceRange.layerCount = 1;
+
+
+    if (vkCreateImageView(device.device(), &viewInfo, nullptr, &swapChainImageViews[i]) !=
+        VK_SUCCESS) {
+      throw std::runtime_error("failed to create texture image view!");
+    }
+
+
+    // Hard coding format until i make an abstaction class
+    createAttachmentImageView(&positionImageViews[i], positionImages[i], positionMemory[i],
+       VK_FORMAT_R16G16B16A16_SFLOAT, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT); 
+
+    createAttachmentImageView(&normalImageViews[i], normalImages[i], normalMemory[i], VK_FORMAT_R16G16B16A16_SFLOAT,
+       VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+
+    createAttachmentImageView(&albedoImageViews[i], albedoImages[i], albedoMemory[i],
+       VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_INPUT_ATTACHMENT_BIT);
+
+
+
+  }
+
+}
+
+// Deffered createAttachment
+void SwapChain::createAttachmentImageView(VkImageView* imageView, VkImage& image, VkDeviceMemory& imageMemory, VkFormat format, VkImageUsageFlags usage)
+{
+  // Create Image
+  VkImageCreateInfo imageInfo{};
+  imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+  imageInfo.imageType = VK_IMAGE_TYPE_2D;
+  imageInfo.extent.width = getSwapChainExtent().width;
+  imageInfo.extent.height = getSwapChainExtent().height;
+  imageInfo.extent.depth = 1;
+  imageInfo.mipLevels = 1;
+  imageInfo.arrayLayers = 1;
+  imageInfo.format = format;
+  imageInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+  imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+  imageInfo.usage = usage;
+  imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+  imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
+
+  
+  if (vkCreateImage(device.device(), &imageInfo, nullptr, &image) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create texture image!");
+  }
+
+
+  VkMemoryRequirements memRequirements;
+  vkGetImageMemoryRequirements(device.device(), image, &memRequirements);
+
+  VkMemoryAllocateInfo allocInfo{};
+  allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+  allocInfo.allocationSize = memRequirements.size;
+  allocInfo.memoryTypeIndex = device.findMemoryType(
+      memRequirements.memoryTypeBits,
+      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
+  );
+  
+  if (vkAllocateMemory(device.device(), &allocInfo, nullptr, &imageMemory) != VK_SUCCESS) {
+    throw std::runtime_error("failed to allocate G-buffer image memory!");
+  }
+  
+  
+  // 3) Bind Memory
+  if (vkBindImageMemory(device.device(), image, imageMemory, 0) != VK_SUCCESS) {
+      throw std::runtime_error("failed to bind G-buffer image memory!");
+  }
+
+  // Create ImageView
+  VkImageViewCreateInfo viewInfo{};
+  viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+  viewInfo.image = image;
+  viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+  viewInfo.format = format;
+  viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  viewInfo.subresourceRange.baseMipLevel = 0;
+  viewInfo.subresourceRange.levelCount = 1;
+  viewInfo.subresourceRange.baseArrayLayer = 0;
+  viewInfo.subresourceRange.layerCount = 1;
+
+  if (vkCreateImageView(device.device(), &viewInfo, nullptr, imageView) !=
+      VK_SUCCESS) {
+    throw std::runtime_error("failed to create texture image view!");
+  }
+
 
 }
 
@@ -357,7 +502,7 @@ void SwapChain::createDefferedRenderPass()
   renderPassAttachments[0].stencilStoreOp   = VK_ATTACHMENT_STORE_OP_DONT_CARE;
   renderPassAttachments[0].stencilLoadOp    = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
   renderPassAttachments[0].initialLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
-  renderPassAttachments[0].finalLayout      = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+  renderPassAttachments[0].finalLayout      = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
   
   // ----- G_Buffer Normals - 1 ------
   renderPassAttachments[1] = renderPassAttachments[0];
@@ -418,14 +563,15 @@ void SwapChain::createDefferedRenderPass()
   
   VkAttachmentReference frameBufferAtthacmentRef{};
   frameBufferAtthacmentRef.attachment = 4;
-  frameBufferAtthacmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+  frameBufferAtthacmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
   
   VkSubpassDescription lightingSubpass = {};
   lightingSubpass.pipelineBindPoint         = VK_PIPELINE_BIND_POINT_GRAPHICS;
   lightingSubpass.inputAttachmentCount      = static_cast<uint32_t>(lightingInputAttachmentRefs.size());
-  lightingSubpass.pColorAttachments         = lightingInputAttachmentRefs.data();
+  lightingSubpass.pInputAttachments         = lightingInputAttachmentRefs.data();
   lightingSubpass.colorAttachmentCount      = 1;
-  lightingSubpass.pDepthStencilAttachment   = &frameBufferAtthacmentRef;  
+  lightingSubpass.pColorAttachments         = &frameBufferAtthacmentRef;  
+  lightingSubpass.pDepthStencilAttachment   = nullptr;
   
   
   // ---------------------------
@@ -474,8 +620,13 @@ void SwapChain::createDefferedRenderPass()
 
 void SwapChain::createFramebuffers() {
   swapChainFramebuffers.resize(imageCount());
+
   for (size_t i = 0; i < imageCount(); i++) {
-    std::array<VkImageView, 2> attachments = {swapChainImageViews[i], depthImageViews[i]};
+
+    std::array<VkImageView, 2> attachments = {
+      swapChainImageViews[i],
+      depthImageViews[i]
+    };
 
     VkExtent2D swapChainExtent = getSwapChainExtent();
     VkFramebufferCreateInfo framebufferInfo = {};
@@ -496,6 +647,43 @@ void SwapChain::createFramebuffers() {
     }
   }
 }
+
+// Deffered FrameBuffer
+void SwapChain::createDefferedFramebuffers() {
+
+  swapChainFramebuffers.resize(imageCount());
+  
+  for (size_t i = 0; i < imageCount(); i++) {
+
+    std::array<VkImageView, 5> attachments = {
+      positionImageViews[i],
+      normalImageViews[i],
+      albedoImageViews[i],
+      depthImageViews[i],
+      swapChainImageViews[i]
+    };
+
+    VkExtent2D swapChainExtent = getSwapChainExtent();
+    VkFramebufferCreateInfo framebufferInfo = {};
+    framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+    framebufferInfo.renderPass = defferedRenderPass;
+    framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+    framebufferInfo.pAttachments = attachments.data();
+    framebufferInfo.width = swapChainExtent.width;
+    framebufferInfo.height = swapChainExtent.height;
+    framebufferInfo.layers = 1;
+
+    if (vkCreateFramebuffer(
+      device.device(),
+      &framebufferInfo,
+      nullptr,
+      &swapChainFramebuffers[i]) != VK_SUCCESS
+    ) {
+      throw std::runtime_error("failed to create framebuffer!");
+    }
+  }
+}
+
 
 void SwapChain::createSyncObjects() {
   imageAvailableSemaphores.resize(MAX_FRAMES_IN_FLIGHT);

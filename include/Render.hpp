@@ -98,16 +98,26 @@ namespace Orasis {
 
             VkRenderPassBeginInfo renderPassInfo{};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            renderPassInfo.renderPass = ors_SwapChain->getRenderPass();
+            renderPassInfo.renderPass = ors_SwapChain->getDefferedRenderPass();
             renderPassInfo.framebuffer = ors_SwapChain->getFrameBuffer(currentImageIndex);
             renderPassInfo.renderArea.offset = {0, 0};
             renderPassInfo.renderArea.extent = ors_SwapChain->getSwapChainExtent();
 
-            std::array<VkClearValue, 2> clearValues{};
-            clearValues[0].color = {0.01f, 0.01f, 0.01f, 1.0f};
-            clearValues[1].depthStencil = {1.0f, 0};
+            // DEFFERED
+            std::array<VkClearValue, 5> clearValues{};
+            clearValues[0].color = {0.f, 0.f, 0.f, 0.f};
+            clearValues[1].color = {0.f, 0.f, 0.f, 0.f};
+            clearValues[2].color = {0.f, 0.f, 0.f, 0.f};
+            clearValues[3].depthStencil = {1.0f, 0};
+            clearValues[4].color = {0.f, 0.f, 0.f, 0.f};
             renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
             renderPassInfo.pClearValues = clearValues.data();
+            
+            // std::array<VkClearValue, 2> clearValues{};
+            // clearValues[0].color = {0.f, 0.f, 0.f, 1.f};
+            // clearValues[1].depthStencil = {1.0f, 0};
+            // renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
+            // renderPassInfo.pClearValues = clearValues.data();
             
             vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
             VkViewport viewport{};
@@ -182,6 +192,11 @@ namespace Orasis {
             return ors_SwapChain->getRenderPass(); 
         }
         
+        VkRenderPass getSwapChainDefferedRenderPass() const 
+        {
+            return ors_SwapChain->getDefferedRenderPass(); 
+        }
+        
         int getCurrentFrameIndex () const 
         {
             assert(isFrameStarted && "Cannot get frame index when frame not in progress");
@@ -192,6 +207,15 @@ namespace Orasis {
         {
             return ors_SwapChain->extentAspectRatio();
         }
+
+        int getSwapChainImages()
+        {   
+            return ors_SwapChain->imageCount();
+        }
+
+        VkImageView getPosImageView(int index) { return ors_SwapChain->getPositionImageViews(index); }
+        VkImageView getNormalImageView(int index) { return ors_SwapChain->getNormalImageViews(index); }
+        VkImageView getAlbidoImageView(int index) { return ors_SwapChain->getAlbedoImageViews(index); }
 
         private:
 

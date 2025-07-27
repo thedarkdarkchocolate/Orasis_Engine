@@ -22,6 +22,7 @@ namespace Orasis {
         // Order of decleration matters (Variable get created from top to bottom and destroyed in the reverse)
         // we need the global pool to be destroyed before the device
         std::unique_ptr<DescriptorPool> globalPool{};
+        std::unique_ptr<DescriptorPool> gBufferPool{};
         GameObject::uMap gameObjects;
         
 
@@ -39,12 +40,25 @@ namespace Orasis {
                 globalPool = 
                     DescriptorPool::Builder(ors_Device)                                         
                         .setMaxSets(SwapChain::MAX_FRAMES_IN_FLIGHT)
+                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
+                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
+                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
                         .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT)
                         .build();
-                
+
+                gBufferPool = 
+                    DescriptorPool::Builder(ors_Device)                                         
+                        .setMaxSets(SwapChain::MAX_FRAMES_IN_FLIGHT)
+                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
+                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
+                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
+                        .build();
+
+
+
                 loadGameObjects();
 
-                ui = std::make_unique<UI>(ors_Device, ors_Window, ors_Render.getSwapChainRenderPass());
+                //ui = std::make_unique<UI>(ors_Device, ors_Window, ors_Render.getSwapChainRenderPass());
 
 
             }
@@ -85,6 +99,9 @@ namespace Orasis {
                 // Configuring Descriptor Layout Info
                 std::unique_ptr<Orasis::DescriptorSetLayout> globalDiscrSetLayout = 
                         DescriptorSetLayout::Builder(ors_Device)
+                            // .addBinding(0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
+                            // .addBinding(1, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
+                            // .addBinding(2, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
                             .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
                             .build();
                 
@@ -98,18 +115,28 @@ namespace Orasis {
                         .build(globalDescriptorSets[i]);
                 }
 
+                // std::unique_ptr<Orasis::DescriptorSetLayout> gBufferDiscrSetLayout = 
+                //         DescriptorSetLayout::Builder(ors_Device)
+                //             .addBinding(0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
+                //             .addBinding(1, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
+                //             .addBinding(2, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
+                //             .build();
+
                 // Systems Initialization
-                RenderSystem renderSys          {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};   
-                PointLightSystem pointLightSys  {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};   
-                ComputeSystem computeSys        {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};
+                // RenderSystem renderSys          {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};   
+                // PointLightSystem pointLightSys  {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};   
+                // ComputeSystem computeSys        {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};
+                DefferedSystem defferedSys      {ors_Device, ors_Render.getSwapChainDefferedRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout(),
+                                                 globalDiscrSetLayout->getDescriptorSetLayout()};
                 
                 Camera camera{};
                 KmbMovementController cameraController{};
                 GameObject cameraObj = GameObject::createGameObject();
+                cameraObj.transform.translation = {0.f, -1.f, 0.f};
 
                 auto currTime = std::chrono::high_resolution_clock::now();
 
-                ui->init();
+                //ui->init();
 
                 
                 while(!ors_Window.shouldClose())
@@ -121,7 +148,7 @@ namespace Orasis {
                     float dt = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currTime).count();
                     currTime = newTime;
                     
-                    ui->newFrame();
+                    //ui->newFrame();
                     
                     float aspect = ors_Render.getAspectRatio();
                     cameraController.moveInPlaneXZ(ors_Window.getWindow(), cameraObj, dt);
@@ -143,8 +170,8 @@ namespace Orasis {
                             dt
                         };
 
-                        if(frameIndex%2)
-                            ui->updateInfo({(dt*1000.f)});
+                        if(frameIndex%2);
+                            //ui->updateInfo({(dt*1000.f)});
 
                         // Update UBO
                         UBO_struct ubo_s{};
@@ -159,9 +186,13 @@ namespace Orasis {
                         
                         ors_Render.startSwapChainRenderPass(cmndBuffer);
 
-                        renderSys.renderGameObjects(frameInfo);
-                        ui->render(cmndBuffer);
-                        
+                        // renderSys.renderGameObjects(frameInfo);
+
+                        // Deffered Render
+                        defferedSys.defferedRender(frameInfo);
+
+                        // Render ImGui
+                        //ui->render(cmndBuffer);
                         
                         ors_Render.endSwapChainRenderPass(cmndBuffer);
                         ors_Render.endFrame();
@@ -178,11 +209,11 @@ namespace Orasis {
 
             void loadGameObjects()
             {
-                std::shared_ptr<Model> model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/smooth_vase.obj");
+                std::shared_ptr<Model> model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/cube.obj");
                 GameObject smoothVase = GameObject::createGameObject();
                 smoothVase.model = model;
-                smoothVase.transform.translation = {0.f, 0.5f, 2.5f};
-                smoothVase.transform.scale = glm::vec3(3.f);
+                smoothVase.transform.translation = {0.f, 0.5f, 4.f};
+                smoothVase.transform.scale = glm::vec3(0.5f);
                 gameObjects.emplace(smoothVase.getID(), std::move(smoothVase));
                 
                 model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/cube.obj");

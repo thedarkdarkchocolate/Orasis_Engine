@@ -21,9 +21,11 @@ namespace Orasis {
     std::vector<VkFramebuffer> swapChainFramebuffers;
     VkRenderPass renderPass;
 
-    std::vector<VkImage> depthImages;
     std::vector<VkDeviceMemory> depthImageMemorys;
+
+    std::vector<VkImage> depthImages;
     std::vector<VkImageView> depthImageViews;
+
     std::vector<VkImage> swapChainImages;
     std::vector<VkImageView> swapChainImageViews;
 
@@ -38,10 +40,34 @@ namespace Orasis {
     std::vector<VkFence> imagesInFlight;
     size_t currentFrame = 0;
     
-    // Deffered Variables
+    // --------- Deffered Variables ---------
     VkRenderPass defferedRenderPass;
-    
 
+    std::vector<VkImageView> positionImageViews, normalImageViews, albedoImageViews;
+    std::vector<VkImage> positionImages, normalImages, albedoImages;
+    std::vector<VkDeviceMemory> positionMemory, normalMemory, albedoMemory;
+    
+    // --------------------------------------
+  
+    // --------- Deffered Functions --------- --------- --------- --------- --------- ---------
+
+      void initDeffered();
+      void createDefferedImageViews();
+      void createAttachmentImageView(VkImageView* imageView, VkImage& image, VkDeviceMemory& imageMemory, VkFormat format, VkImageUsageFlags usage);
+      void createDefferedRenderPass();
+      void createDefferedFramebuffers();
+
+      public:
+      
+      VkRenderPass getDefferedRenderPass() { return defferedRenderPass; }
+      
+      VkImageView getPositionImageViews(int index) { return positionImageViews[index]; }
+      VkImageView getNormalImageViews(int index) { return normalImageViews[index]; }
+      VkImageView getAlbedoImageViews(int index) { return albedoImageViews[index]; }
+      private:
+
+    // --------- End -> TODO: abstract the RenderPass creation and framebuffers --------- --------- --------- ---------
+    
     void init();
     void createSwapChain();
     void createImageViews();
@@ -49,13 +75,6 @@ namespace Orasis {
     void createRenderPass();
     void createFramebuffers();
     void createSyncObjects();
-  
-    // Deffered Functions
-
-    void initDeffered();
-    void createDefferedRenderPass();
-
-    // End -> TODO: abstract the RenderPass creation and framebuffers
 
     // Helper functions
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR> &availableFormats);

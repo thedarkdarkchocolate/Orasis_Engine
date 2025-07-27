@@ -98,7 +98,7 @@ namespace Orasis {
         vkDestroyDescriptorPool(device.device(), descriptorPool, nullptr);
     }
     
-    bool DescriptorPool::allocateDescriptor(const VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet& descriptor) const 
+    bool DescriptorPool::allocateDescriptorSet(const VkDescriptorSetLayout descriptorSetLayout, VkDescriptorSet& descriptor) const 
     {
         VkDescriptorSetAllocateInfo allocInfo{};
         allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
@@ -187,7 +187,7 @@ namespace Orasis {
         return *this;
     }
     
-    DescriptorWriter& DescriptorWriter::writeImage(uint32_t binding, VkDescriptorImageInfo *imageInfo) \
+    DescriptorWriter& DescriptorWriter::writeImage(uint32_t binding, VkDescriptorImageInfo *imageInfo) 
     {
         assert(setLayout.bindings.count(binding) == 1 && "Layout does not contain specified binding");
         
@@ -211,7 +211,7 @@ namespace Orasis {
     
     bool DescriptorWriter::build(VkDescriptorSet& set) {
 
-        bool success = pool.allocateDescriptor(setLayout.getDescriptorSetLayout(), set);
+        bool success = pool.allocateDescriptorSet(setLayout.getDescriptorSetLayout(), set);
 
         if (!success) 
             return false;
