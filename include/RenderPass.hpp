@@ -12,7 +12,6 @@
 namespace Orasis {
 
     
-    
     class RenderPass {
 
         
@@ -20,17 +19,22 @@ namespace Orasis {
 
             struct SubpassAttachment {
 
-                uint8_t                 s_previousSubpass;
-                
-                VkAttachmentDescription s_attchDescr{};
-                VkFormat                s_attachFormat{};
-                uint8_t                 s_subpassToAttach{};
-                bool                    s_isDeapthAttach{};
-                uint8_t                 s_attachIndex{};
+                enum Type {
+                    isColor,
+                    isDepth,
+                    isPresented
+                };
+
+                VkAttachmentDescription     s_attchDescr{};
+                VkFormat                    s_attachFormat{};
+                uint8_t                     s_subpassToAttach{};
+                Type                        s_type{};
+                uint8_t                     s_attachIndex{};
+                uint8_t                     s_previousSubpass{};
             
                 SubpassAttachment() = delete;
 
-                SubpassAttachment(VkAttachmentDescription attchDescr, VkFormat attachFormat, uint8_t subpassToAttach = 0, bool isDeapthAttach = false);
+                SubpassAttachment(VkFormat attachFormat, uint8_t subpassToAttach = 0, Type type = Type::isColor);
 
             };
         
@@ -90,7 +94,7 @@ namespace Orasis {
 
                 SubpassAttachment& currAttachment = renderPassAttachmentsStruct[i];
 
-                if (!currAttachment.s_isDeapthAttach)
+                if (currAttachment.s_type == SubpassAttachment::Type::isColor)
                 {
                     // ----- Color attachments -----
                     currAttachment.s_attchDescr.format           = currAttachment.s_attachFormat;
@@ -101,10 +105,8 @@ namespace Orasis {
                     currAttachment.s_attchDescr.stencilLoadOp    = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
                     currAttachment.s_attchDescr.initialLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
                     currAttachment.s_attchDescr.finalLayout      = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-
-
                 }
-                else {
+                else if(currAttachment.s_type == SubpassAttachment::Type::isDepth){
 
                     // ----- Depth Attachment ------
                     currAttachment.s_attchDescr.format         = currAttachment.s_attachFormat;
@@ -114,12 +116,23 @@ namespace Orasis {
                     currAttachment.s_attchDescr.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
                     currAttachment.s_attchDescr.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                 }
+                else if(currAttachment.s_type == SubpassAttachment::Type::isPresented)
+                {
+                    currAttachment.s_attchDescr.format         = currAttachment.s_attachFormat;
+                    currAttachment.s_attchDescr.samples        = VK_SAMPLE_COUNT_1_BIT;
+                    currAttachment.s_attchDescr.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                    currAttachment.s_attchDescr.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+                    currAttachment.s_attchDescr.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+                    currAttachment.s_attchDescr.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                }
+                else    
+                    throw std::runtime_error("Type doesn't exist");
 
                 renderPassAttachments.push_back(currAttachment.s_attchDescr);
             }
 
             // JUST A PLACE HOLDER IN CASE IN THE FUTURE I WANT TO IMPLEMENT
-            // A RENDER PASS WHERE I CHOSE IF THE PREV ATTACHMENTS GOES AS INPUT 
+            // A RENDER PASS WHERE I CHOSE IF THE PREV ATTACHMENTS NEED TO BE PASSED AS INPUT 
             bool PREV_SUBPASS_ATTACHMENTS_AS_INPUT = true; 
 
             std::vector<VkSubpassDescription> subPasses;
@@ -131,19 +144,19 @@ namespace Orasis {
             std::vector<std::vector<VkAttachmentReference>> inputSubpassRefs;
             inputSubpassRefs.resize(totalSubpasses);
             
-            VkAttachmentReference deapthAttachmentRef{};
+            VkAttachmentReference depthAttachmentRef{};
 
             for (int currSubpass = 0; currSubpass < totalSubpasses; currSubpass++)
             {
 
-                bool hasDeapthAttachment{false};
+                bool hasDepthAttachment{false};
                 bool needsPrevAttachmentsAsInput{false}; 
 
                 for(int i = 0; i < subPassAttachments[currSubpass].size(); i++)
                 {
                     auto currSubPassAttachment = subPassAttachments[currSubpass][i];
 
-                    if(!currSubPassAttachment.s_isDeapthAttach)
+                    if(currSubPassAttachment.s_type == SubpassAttachment::Type::isColor)
                     {
                         VkAttachmentReference ref{};
                         ref.attachment = currSubPassAttachment.s_attachIndex;
@@ -151,12 +164,12 @@ namespace Orasis {
 
                         subPassesRefs[currSubpass].push_back(ref);
                     }
-                    else
+                    else if(currSubPassAttachment.s_type == SubpassAttachment::Type::isDepth)
                     {
-                        hasDeapthAttachment = true;
+                        hasDepthAttachment = true;
 
-                        deapthAttachmentRef.attachment = i;
-                        deapthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;   
+                        depthAttachmentRef.attachment = currSubPassAttachment.s_attachIndex;
+                        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;   
                     }
 
                 }
@@ -169,7 +182,7 @@ namespace Orasis {
                     {
                         auto prevSubPassAttachment = subPassAttachments[currSubpass - 1][i];
 
-                        if(!prevSubPassAttachment.s_isDeapthAttach)
+                        if(prevSubPassAttachment.s_type == SubpassAttachment::Type::isColor)
                         {
                             VkAttachmentReference ref{};
                             ref.attachment = prevSubPassAttachment.s_attachIndex;
@@ -193,8 +206,8 @@ namespace Orasis {
                 subPasses[currSubpass].colorAttachmentCount         = static_cast<uint32_t>(subPassesRefs[currSubpass].size());
                 subPasses[currSubpass].pColorAttachments            = subPassesRefs[currSubpass].data();
 
-                if (hasDeapthAttachment)
-                    subPasses[currSubpass].pDepthStencilAttachment  = &deapthAttachmentRef;
+                if (hasDepthAttachment)
+                    subPasses[currSubpass].pDepthStencilAttachment  = &depthAttachmentRef;
                 
                 if (needsPrevAttachmentsAsInput){
                     subPasses[currSubpass].inputAttachmentCount     = static_cast<uint32_t>(inputSubpassRefs[currSubpass].size());
@@ -241,7 +254,7 @@ namespace Orasis {
 
 
     struct Image {
-        // ----------------- TODO: CREATE INIT FOR DEAPTH RESOURCES ----------------
+        // ----------------- TODO: CREATE INIT FOR DEPTH RESOURCES ----------------
         VkImage         s_image;
         VkImageView     s_imageView;
         VkDeviceMemory  s_imageMemory;

@@ -11,12 +11,11 @@ namespace Orasis {
 
     RenderPass::SubpassAttachment::SubpassAttachment
     (
-        VkAttachmentDescription attchDescr,
         VkFormat attachFormat,
         uint8_t subpassToAttach,
-        bool isDeapthAttach
+        Type type
     )
-    :s_attchDescr{attchDescr}, s_attachFormat{attachFormat}, s_subpassToAttach{subpassToAttach}, s_isDeapthAttach{isDeapthAttach}
+    :s_attachFormat{attachFormat}, s_subpassToAttach{subpassToAttach}, s_type{type}
     {
         // Trying to catch a misconfiguration
         if(s_previousSubpass > subpassToAttach || s_previousSubpass + 1 != subpassToAttach)
