@@ -4,9 +4,12 @@
 
 #include <vulkan/vulkan.h>
 
+
 // std
 #include <memory>
 #include <unordered_map>
+
+#include "vk_mem_alloc.h"
 
 
 namespace Orasis {
@@ -91,44 +94,34 @@ namespace Orasis {
             // Configuring Attachements Description
             for (int i = 0; i < renderPassAttachmentsStruct.size(); i++)
             {
+                SubpassAttachment currAttachment = renderPassAttachmentsStruct[i];
+                VkAttachmentDescription& desc = currAttachment.s_attchDescr;
 
-                SubpassAttachment& currAttachment = renderPassAttachmentsStruct[i];
+                desc.format           = currAttachment.s_attachFormat;
+                desc.samples          = VK_SAMPLE_COUNT_1_BIT;
+                desc.loadOp           = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                desc.stencilLoadOp    = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+                desc.initialLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
 
-                if (currAttachment.s_type == SubpassAttachment::Type::isColor)
+                switch (currAttachment.s_type)
                 {
-                    // ----- Color attachments -----
-                    currAttachment.s_attchDescr.format           = currAttachment.s_attachFormat;
-                    currAttachment.s_attchDescr.samples          = VK_SAMPLE_COUNT_1_BIT;
-                    currAttachment.s_attchDescr.loadOp           = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                    currAttachment.s_attchDescr.storeOp          = VK_ATTACHMENT_STORE_OP_STORE;
-                    currAttachment.s_attchDescr.stencilStoreOp   = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                    currAttachment.s_attchDescr.stencilLoadOp    = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-                    currAttachment.s_attchDescr.initialLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
-                    currAttachment.s_attchDescr.finalLayout      = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                    case SubpassAttachment::Type::isColor:
+                        desc.storeOp     = VK_ATTACHMENT_STORE_OP_STORE;
+                        desc.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+                        break;
+                    case SubpassAttachment::Type::isDepth:
+                        desc.storeOp     = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+                        desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                        break;
+                    case SubpassAttachment::Type::isPresented:
+                        desc.storeOp     = VK_ATTACHMENT_STORE_OP_STORE;
+                        desc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                        break;
+                    default:
+                        throw std::runtime_error("Unknown attachment type!");
                 }
-                else if(currAttachment.s_type == SubpassAttachment::Type::isDepth){
 
-                    // ----- Depth Attachment ------
-                    currAttachment.s_attchDescr.format         = currAttachment.s_attachFormat;
-                    currAttachment.s_attchDescr.samples        = VK_SAMPLE_COUNT_1_BIT;
-                    currAttachment.s_attchDescr.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                    currAttachment.s_attchDescr.storeOp        = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-                    currAttachment.s_attchDescr.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-                    currAttachment.s_attchDescr.finalLayout    = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-                }
-                else if(currAttachment.s_type == SubpassAttachment::Type::isPresented)
-                {
-                    currAttachment.s_attchDescr.format         = currAttachment.s_attachFormat;
-                    currAttachment.s_attchDescr.samples        = VK_SAMPLE_COUNT_1_BIT;
-                    currAttachment.s_attchDescr.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
-                    currAttachment.s_attchDescr.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
-                    currAttachment.s_attchDescr.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
-                    currAttachment.s_attchDescr.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-                }
-                else    
-                    throw std::runtime_error("Type doesn't exist");
-
-                renderPassAttachments.push_back(currAttachment.s_attchDescr);
+                renderPassAttachments.push_back(desc);
             }
 
             // JUST A PLACE HOLDER IN CASE IN THE FUTURE I WANT TO IMPLEMENT
@@ -156,20 +149,36 @@ namespace Orasis {
                 {
                     auto currSubPassAttachment = subPassAttachments[currSubpass][i];
 
-                    if(currSubPassAttachment.s_type == SubpassAttachment::Type::isColor)
+                    switch (currSubPassAttachment.s_type)
                     {
-                        VkAttachmentReference ref{};
-                        ref.attachment = currSubPassAttachment.s_attachIndex;
-                        ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                        case SubpassAttachment::Type::isColor:
+                        
+                            VkAttachmentReference ref{};
+                            ref.attachment = currSubPassAttachment.s_attachIndex;
+                            ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
-                        subPassesRefs[currSubpass].push_back(ref);
-                    }
-                    else if(currSubPassAttachment.s_type == SubpassAttachment::Type::isDepth)
-                    {
-                        hasDepthAttachment = true;
+                            subPassesRefs[currSubpass].push_back(ref);
+                            break;
 
-                        depthAttachmentRef.attachment = currSubPassAttachment.s_attachIndex;
-                        depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;   
+                        case SubpassAttachment::Type::isDepth:
+
+                            hasDepthAttachment = true;
+
+                            depthAttachmentRef.attachment = currSubPassAttachment.s_attachIndex;
+                            depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+                            break;
+
+                        case SubpassAttachment::Type::isPresented:
+
+                            VkAttachmentReference ref{};
+                            ref.attachment = currSubPassAttachment.s_attachIndex;
+                            ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+                            subPassesRefs[currSubpass].push_back(ref);
+                            break;
+
+                        default:
+                            throw std::runtime_error("Unknown attachment type!");
                     }
 
                 }
@@ -257,28 +266,35 @@ namespace Orasis {
         // ----------------- TODO: CREATE INIT FOR DEPTH RESOURCES ----------------
         VkImage         s_image;
         VkImageView     s_imageView;
-        VkDeviceMemory  s_imageMemory;
+        VmaAllocation   s_allocation;   // replaces VkDeviceMemory
+        VmaAllocator    s_allocator;    // passed in (not owned)
 
-        Device&          s_device;
+        Device&         s_device;
 
         Image() = delete;
-        Image(Image& o_other) = delete;
-        Image operator=(Image& o_other) = delete;
+        Image(const Image& o_other) = delete;
+        Image operator=(const Image& o_other) = delete;
         
-        Image(Device& device, VkExtent2D extend, VkFormat format, VkImageUsageFlags usage)
-        : s_device{device}
+        Image(
+            Device& device,
+            VmaAllocator allocator, 
+            VkExtent2D extent, 
+            VkFormat format, 
+            VkImageUsageFlags usage, 
+            VkImageAspectFlags imageAspect = VK_IMAGE_ASPECT_COLOR_BIT)
+        : s_device{device}, s_allocator{allocator}
         {
-            initImage(extend, format, usage);
+            initImage(extent, format, usage, imageAspect);
         }
 
-        void initImage(VkExtent2D extend, VkFormat format, VkImageUsageFlags usage)
+        void initImage(VkExtent2D extent, VkFormat format, VkImageUsageFlags usage, VkImageAspectFlags imageAspect)
         {
             // Create Image
             VkImageCreateInfo imageInfo{};
             imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
             imageInfo.imageType = VK_IMAGE_TYPE_2D;
-            imageInfo.extent.width = extend.width;
-            imageInfo.extent.height = extend.height;
+            imageInfo.extent.width = extent.width;
+            imageInfo.extent.height = extent.height;
             imageInfo.extent.depth = 1;
             imageInfo.mipLevels = 1;
             imageInfo.arrayLayers = 1;
@@ -289,32 +305,13 @@ namespace Orasis {
             imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
             imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
 
-            
-            if (vkCreateImage(s_device.device(), &imageInfo, nullptr, &s_image) !=
-                VK_SUCCESS) {
-                throw std::runtime_error("failed to create texture image!");
-            }
+            // --- VMA Allocation Info ---
+            VmaAllocationCreateInfo allocInfo{};
+            allocInfo.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE; 
 
-
-            VkMemoryRequirements memRequirements;
-            vkGetImageMemoryRequirements(s_device.device(), s_image, &memRequirements);
-
-            VkMemoryAllocateInfo allocInfo{};
-            allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-            allocInfo.allocationSize = memRequirements.size;
-            allocInfo.memoryTypeIndex = s_device.findMemoryType(
-                memRequirements.memoryTypeBits,
-                VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT
-            );
-            
-            if (vkAllocateMemory(s_device.device(), &allocInfo, nullptr, &s_imageMemory) != VK_SUCCESS) {
-                throw std::runtime_error("failed to allocate G-buffer image memory!");
-            }
-            
-            
-            // 3) Bind Memory
-            if (vkBindImageMemory(s_device.device(), s_image, s_imageMemory, 0) != VK_SUCCESS) {
-                throw std::runtime_error("failed to bind G-buffer image memory!");
+            if (vmaCreateImage(s_allocator, &imageInfo, &allocInfo,
+                            &s_image, &s_allocation, nullptr) != VK_SUCCESS) {
+                throw std::runtime_error("failed to create image with VMA!");
             }
 
             // Create ImageView
@@ -323,7 +320,7 @@ namespace Orasis {
             viewInfo.image = s_image;
             viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
             viewInfo.format = format;
-            viewInfo.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+            viewInfo.subresourceRange.aspectMask = imageAspect;
             viewInfo.subresourceRange.baseMipLevel = 0;
             viewInfo.subresourceRange.levelCount = 1;
             viewInfo.subresourceRange.baseArrayLayer = 0;
@@ -337,10 +334,8 @@ namespace Orasis {
 
         ~Image()
         {
-
             vkDestroyImageView(s_device.device(), s_imageView, nullptr);
-            vkDestroyImage(s_device.device(), s_image, nullptr);
-            vkFreeMemory(s_device.device(), s_imageMemory, nullptr);
+            vmaDestroyImage(s_allocator, s_image, s_allocation);
         }
 
     };
