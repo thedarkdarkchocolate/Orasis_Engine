@@ -99,7 +99,7 @@ namespace Orasis {
             VkRenderPassBeginInfo renderPassInfo{};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
             renderPassInfo.renderPass = ors_SwapChain->getDefferedRenderPass();
-            renderPassInfo.framebuffer = ors_SwapChain->getFrameBuffer(currentImageIndex);
+            renderPassInfo.framebuffer = ors_SwapChain->getFrameBufferM(currentImageIndex);
             renderPassInfo.renderArea.offset = {0, 0};
             renderPassInfo.renderArea.extent = ors_SwapChain->getSwapChainExtent();
 

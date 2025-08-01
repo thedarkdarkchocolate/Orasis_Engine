@@ -14,14 +14,16 @@ namespace Orasis {
 SwapChain::SwapChain(Device& deviceRef, VkExtent2D extent)
     : device{deviceRef}, windowExtent{extent} {
     // init();
-    initDeffered();
+    // initDeffered();
+    initManager();
   }
   
   SwapChain::SwapChain(Device& deviceRef, VkExtent2D extent, std::shared_ptr<SwapChain> previous)
   : device{deviceRef}, windowExtent{extent}, oldSwapChain{previous} {
     
     // init();
-    initDeffered();
+    // initDeffered();
+    initManager();
     oldSwapChain = nullptr;
 }
 
@@ -32,6 +34,28 @@ void SwapChain::init() {
   createDepthResources();
   createFramebuffers();
   createSyncObjects();
+}
+
+void SwapChain::initManager() {
+  
+  createSwapChain();
+
+  swapChainDepthFormat = findDepthFormat();
+
+  ManagerInfo managerInfo{};
+  managerInfo.swapChainFormat = swapChainImageFormat;
+  managerInfo.depthFormat     = swapChainDepthFormat;
+  managerInfo.swapChain       = swapChain;
+  managerInfo.extent          = swapChainExtent;
+
+
+  manager = std::make_unique<Manager>(device, managerInfo);
+  manager->createDeffered();
+  
+  createSyncObjects();
+  
+  defferedRenderPass = manager->getRenderPass();
+
 }
 
 // Deffered
@@ -68,23 +92,24 @@ SwapChain::~SwapChain() {
 
   
   // --------------- Deffered ---------------
-  vkDestroyRenderPass(device.device(), renderPass, nullptr);
-  for (int i = 0; i < positionImageViews.size(); i++) {
-    vkDestroyImageView(device.device(), positionImageViews[i], nullptr);
-    vkDestroyImage(device.device(), positionImages[i], nullptr);
-    vkFreeMemory(device.device(), positionMemory[i], nullptr);
+  // vkDestroyRenderPass(device.device(), renderPass, nullptr);
+  // for (int i = 0; i < positionImageViews.size(); i++) {
+  //   vkDestroyImageView(device.device(), positionImageViews[i], nullptr);
+  //   vkDestroyImage(device.device(), positionImages[i], nullptr);
+  //   vkFreeMemory(device.device(), positionMemory[i], nullptr);
     
-    vkDestroyImageView(device.device(), normalImageViews[i], nullptr);
-    vkDestroyImage(device.device(), normalImages[i], nullptr);
-    vkFreeMemory(device.device(), normalMemory[i], nullptr);
+  //   vkDestroyImageView(device.device(), normalImageViews[i], nullptr);
+  //   vkDestroyImage(device.device(), normalImages[i], nullptr);
+  //   vkFreeMemory(device.device(), normalMemory[i], nullptr);
     
-    vkDestroyImageView(device.device(), albedoImageViews[i], nullptr);
-    vkDestroyImage(device.device(), albedoImages[i], nullptr);
-    vkFreeMemory(device.device(), albedoMemory[i], nullptr);
+  //   vkDestroyImageView(device.device(), albedoImageViews[i], nullptr);
+  //   vkDestroyImage(device.device(), albedoImages[i], nullptr);
+  //   vkFreeMemory(device.device(), albedoMemory[i], nullptr);
 
-    if (i == positionImageViews.size() - 1)
-      vkDestroyRenderPass(device.device(), defferedRenderPass, nullptr);
-  }
+  //   if (i == positionImageViews.size() - 1)
+  //     vkDestroyRenderPass(device.device(), defferedRenderPass, nullptr);
+
+  // }
   // --------------- Deffered ---------------
 
   // cleanup synchronization objects
@@ -220,9 +245,9 @@ void SwapChain::createSwapChain() {
   // allowed to create a swap chain with more. That's why we'll first query the final number of
   // images with vkGetSwapchainImagesKHR, then resize the container and finally call it again to
   // retrieve the handles.
-  vkGetSwapchainImagesKHR(device.device(), swapChain, &imageCount, nullptr);
-  swapChainImages.resize(imageCount);
-  vkGetSwapchainImagesKHR(device.device(), swapChain, &imageCount, swapChainImages.data());
+  // vkGetSwapchainImagesKHR(device.device(), swapChain, &imageCount, nullptr);
+  // swapChainImages.resize(imageCount);
+  // vkGetSwapchainImagesKHR(device.device(), swapChain, &imageCount, swapChainImages.data());
 
   swapChainImageFormat = surfaceFormat.format;
   swapChainExtent = extent;

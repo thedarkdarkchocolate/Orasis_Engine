@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Device.hpp"
+#include "Manager.hpp"
 
 // vulkan headers
 #include <vulkan/vulkan.h>
@@ -47,6 +48,9 @@ namespace Orasis {
     std::vector<VkImage> positionImages, normalImages, albedoImages;
     std::vector<VkDeviceMemory> positionMemory, normalMemory, albedoMemory;
     
+    std::unique_ptr<Manager> manager;
+
+
     // --------------------------------------
   
     // --------- Deffered Functions --------- --------- --------- --------- --------- ---------
@@ -59,11 +63,27 @@ namespace Orasis {
 
       public:
       
-      VkRenderPass getDefferedRenderPass() { return defferedRenderPass; }
+      // VkRenderPass getDefferedRenderPass() { return defferedRenderPass; }
       
-      VkImageView getPositionImageViews(int index) { return positionImageViews[index]; }
-      VkImageView getNormalImageViews(int index) { return normalImageViews[index]; }
-      VkImageView getAlbedoImageViews(int index) { return albedoImageViews[index]; }
+      // Deffered with no manager
+      // VkImageView getPositionImageViews(int index) { return positionImageViews[index]; }
+      // VkImageView getNormalImageViews(int index) { return normalImageViews[index]; }
+      // VkImageView getAlbedoImageViews(int index) { return albedoImageViews[index]; }
+      
+      // Manager Section
+      void initManager();
+      
+      // Deffered with manager
+      VkRenderPass getDefferedRenderPass()          { return manager->getRenderPass(); }
+      VkImageView getPositionImageViews(int index)  { return manager->getImageView("Positions", index); }
+      VkImageView getNormalImageViews(int index)    { return manager->getImageView("Normal", index); }
+      VkImageView getAlbedoImageViews(int index)    { return manager->getImageView("Albido", index); }
+
+      VkFramebuffer getFrameBufferM(int index)      { return manager->getFrameBuffer(index); }
+      size_t imageCount()                           { return manager->imageCount(); }
+      
+      
+
       private:
 
     // --------- End -> TODO: abstract the RenderPass creation and framebuffers --------- --------- --------- ---------
@@ -99,7 +119,9 @@ namespace Orasis {
     VkRenderPass getRenderPass() { return renderPass; }
     VkImageView getImageView(int index) { return swapChainImageViews[index]; }
     VkFormat getSwapChainImageFormat() {return swapChainImageFormat;}
-    size_t imageCount() { return swapChainImages.size(); }
+
+    // size_t imageCount() { return swapChainImages.size(); } <------- If manager doesn't work need to uncomment this
+    
     VkExtent2D getSwapChainExtent() { return swapChainExtent; }
     uint32_t width() { return swapChainExtent.width; }
     uint32_t height() { return swapChainExtent.height; }

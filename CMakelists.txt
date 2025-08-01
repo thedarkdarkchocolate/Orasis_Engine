@@ -26,6 +26,8 @@ set(VULKAN_DIR PUBLIC C:/VulkanSDK/1.4.304.1)
 target_include_directories(${PROJECT_NAME} ${VULKAN_DIR}/Include)
 target_link_directories(${PROJECT_NAME} ${VULKAN_DIR}/Lib)
 
+target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependacies/vk_impl.cpp)
+
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
