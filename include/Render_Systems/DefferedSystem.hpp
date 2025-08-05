@@ -1,7 +1,7 @@
 #pragma once
 
 #include "Header_Includes/Render_Systems_Headers.hpp"
-
+#include "SwapChain.hpp"
 
 namespace Orasis {
 
@@ -10,12 +10,20 @@ namespace Orasis {
         // -------- MEMBER VARIABLES -------- //
 
         Device& ors_Device;
+
+        // TEST
+        std::unique_ptr<DescriptorPool> m_managerPool{};
+        std::unique_ptr<Orasis::DescriptorSetLayout> m_managerDiscrSetLayout{};
+        std::vector<VkDescriptorSet> m_managerDescriptorSets{};
+        std::shared_ptr<SwapChain> m_swapChain;
+        // END TEST
         
         std::unique_ptr<Pipeline> geoPipeline;
         VkPipelineLayout geoLayout;
 
         std::unique_ptr<Pipeline> lightPipeline;
         VkPipelineLayout lightLayout;
+
         
         // -------- -------- -------- -------- //
 
@@ -24,14 +32,17 @@ namespace Orasis {
 
         // -------- CONSTRUCTOR etc -------- //
 
-        DefferedSystem(Device& device, VkRenderPass defferedRenderPass, VkDescriptorSetLayout globalSetLayout, VkDescriptorSetLayout gBuffersSetLayout)
-        :ors_Device{device}
+        DefferedSystem(Device& device, VkRenderPass defferedRenderPass, VkDescriptorSetLayout globalSetLayout, std::vector<VkDescriptorSetLayout> gBuffersSetLayout
+        , std::shared_ptr<SwapChain> swapChain)
+        :ors_Device{device}, m_swapChain{swapChain}
         {
-            createGeometryLayout(globalSetLayout);
+            createGeometryLayout({globalSetLayout});
             createGeometryPipeline(defferedRenderPass);
             
             createLightingLayout(gBuffersSetLayout);
             createLightingPipeline(defferedRenderPass);
+
+
         }
 
         ~DefferedSystem()
@@ -98,12 +109,23 @@ namespace Orasis {
 
             lightPipeline->bind(commandBuffer);
 
+            // vkCmdBindDescriptorSets(
+            //     commandBuffer,
+            //     VK_PIPELINE_BIND_POINT_GRAPHICS,
+            //     lightLayout,
+            //     0, 1,
+            //     &frameInfo.globalDescriptorSet,
+            //     0, nullptr
+            // );
+
+            VkDescriptorSet sets[2] = {frameInfo.globalDescriptorSet, frameInfo.secondaryDescriptorSet};
+            
             vkCmdBindDescriptorSets(
                 commandBuffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                 lightLayout,
-                0, 1,
-                &frameInfo.globalDescriptorSet,
+                0, 2,
+                sets,
                 0, nullptr
             );
 
@@ -114,19 +136,17 @@ namespace Orasis {
         private:
 
 
-        void createGeometryLayout(VkDescriptorSetLayout globalSetLayout)
+        void createGeometryLayout(std::vector<VkDescriptorSetLayout> layoutToSet)
         {
             VkPushConstantRange pushConstantRange{};    
             pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
             pushConstantRange.offset = 0;
             pushConstantRange.size = sizeof(SimplePushConstantData);  
 
-            std::vector<VkDescriptorSetLayout> layout{globalSetLayout};
-
             VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
             pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-            pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layout.size());
-            pipelineLayoutInfo.pSetLayouts = layout.data();
+            pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layoutToSet.size());
+            pipelineLayoutInfo.pSetLayouts = layoutToSet.data();
             pipelineLayoutInfo.pushConstantRangeCount = 1;
             pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
@@ -134,19 +154,18 @@ namespace Orasis {
                 throw std::runtime_error("failed to create pipeline layout");   
         }
 
-        void createLightingLayout(VkDescriptorSetLayout gBuffersSetLayout)
+        void createLightingLayout(std::vector<VkDescriptorSetLayout> layoutToSet)
         {
             VkPushConstantRange pushConstantRange{};    
             pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT;
             pushConstantRange.offset = 0;
             pushConstantRange.size = sizeof(SimplePushConstantData);  
 
-            std::vector<VkDescriptorSetLayout> layout{gBuffersSetLayout};
             
             VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
             pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-            pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layout.size());
-            pipelineLayoutInfo.pSetLayouts = layout.data();
+            pipelineLayoutInfo.setLayoutCount = static_cast<uint32_t>(layoutToSet.size());
+            pipelineLayoutInfo.pSetLayouts = layoutToSet.data();
             pipelineLayoutInfo.pushConstantRangeCount = 1;
             pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
@@ -157,7 +176,7 @@ namespace Orasis {
         void createGeometryPipeline(VkRenderPass& defferedRenderPass)
         {
             Orasis::PipelineConfigInfo pipelineConfig{};
-            Pipeline::defaultPipelineConfigInfo (pipelineConfig, 3);
+            Pipeline::defaultPipelineConfigInfo(pipelineConfig, 3);
 
             pipelineConfig.renderPass = defferedRenderPass;
             pipelineConfig.pipelineLayout = geoLayout;

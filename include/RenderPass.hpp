@@ -42,8 +42,8 @@ namespace Orasis {
                     Device& s_device;
                     uint8_t attachmentNum{};
                     
-                    std::unordered_map<uint8_t, std::vector<SubpassAttachment>> s_subPassAttachments{};
-                    std::vector<SubpassAttachment> s_renderPassAttachmentsStruct{};
+                    std::unordered_map<uint8_t, std::vector<std::shared_ptr<SubpassAttachment>>> s_subPassAttachments{};
+                    std::vector<std::shared_ptr<SubpassAttachment>> s_renderPassAttachmentsStruct{};
                     std::vector<VkSubpassDependency> s_dependencies{};
 
                 public:
@@ -64,6 +64,8 @@ namespace Orasis {
 
             VkRenderPass m_renderPass;
             Device& m_device;
+
+            size_t m_totalAttachments;
             
 
         public:
@@ -72,8 +74,8 @@ namespace Orasis {
         
         RenderPass(
             Device& device,
-            std::unordered_map<uint8_t, std::vector<SubpassAttachment>> subPassAttachments,
-            std::vector<SubpassAttachment> renderPassAttachmentsStruct,
+            std::unordered_map<uint8_t, std::vector<std::shared_ptr<SubpassAttachment>>> subPassAttachments,
+            std::vector<std::shared_ptr<SubpassAttachment>> renderPassAttachmentsStruct,
             std::vector<VkSubpassDependency> subpassDependancies
         );
         
@@ -96,7 +98,10 @@ namespace Orasis {
             return m_renderPass;
         }
 
-
+        size_t attachmentCount()
+        {
+            return m_totalAttachments;
+        }
 
     };
 

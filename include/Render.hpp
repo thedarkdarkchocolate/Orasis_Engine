@@ -18,7 +18,13 @@ namespace Orasis {
 
         Window& ors_Window;
         Device& ors_Device;
-        std::unique_ptr<SwapChain> ors_SwapChain;
+        
+        // CHANGE IT TO UNIQUE AFTER TEST
+        public:
+        std::shared_ptr<SwapChain> ors_SwapChain;
+        private:
+        // CHANGE IT TO UNIQUE AFTER TEST
+
         std::vector<VkCommandBuffer> commandBuffers;
 
         uint32_t currentImageIndex;
@@ -61,7 +67,6 @@ namespace Orasis {
         {
 
             auto result = ors_SwapChain->acquireNextImage(&currentImageIndex);
-            int currentFrameIndex;
 
             if (result == VK_ERROR_OUT_OF_DATE_KHR)
             {
@@ -104,12 +109,10 @@ namespace Orasis {
             renderPassInfo.renderArea.extent = ors_SwapChain->getSwapChainExtent();
 
             // DEFFERED
-            std::array<VkClearValue, 5> clearValues{};
-            clearValues[0].color = {0.f, 0.f, 0.f, 0.f};
-            clearValues[1].color = {0.f, 0.f, 0.f, 0.f};
-            clearValues[2].color = {0.f, 0.f, 0.f, 0.f};
-            clearValues[3].depthStencil = {1.0f, 0};
-            clearValues[4].color = {0.f, 0.f, 0.f, 0.f};
+            std::vector<VkClearValue> clearValues{};
+            getClearValues(clearValues);
+            
+
             renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
             renderPassInfo.pClearValues = clearValues.data();
             
@@ -196,6 +199,11 @@ namespace Orasis {
         {
             return ors_SwapChain->getDefferedRenderPass(); 
         }
+
+        size_t getAttachmentCountPerSubpass(int index)
+        {
+            return ors_SwapChain->getAttachmentsCountPreSubpass(index);
+        }
         
         int getCurrentFrameIndex () const 
         {
@@ -213,9 +221,18 @@ namespace Orasis {
             return ors_SwapChain->imageCount();
         }
 
+        VkDescriptorSet getInputAttachmentDescriptorSet(int frameIndex) {
+            return ors_SwapChain->getInputAttachmentDescriptorSet(frameIndex);
+        }
+
+        DescriptorSetLayout& getInputAttachmentSetLayout() {
+            return ors_SwapChain->getInputAttachmentSetLayout();
+        }
+
         VkImageView getPosImageView(int index) { return ors_SwapChain->getPositionImageViews(index); }
         VkImageView getNormalImageView(int index) { return ors_SwapChain->getNormalImageViews(index); }
         VkImageView getAlbidoImageView(int index) { return ors_SwapChain->getAlbedoImageViews(index); }
+        
 
         private:
 
@@ -266,6 +283,24 @@ namespace Orasis {
             }
             
             
+        }
+
+        void getClearValues(std::vector<VkClearValue>& clearValues)
+        {
+            auto attachments = ors_SwapChain->getAttachments();
+            
+            size_t size = attachments.size();
+
+            clearValues.resize(size);
+
+            for(int i = 0; i < size; i++)
+            {
+                if (attachments[i].s_type == Attachment::Type::isDepth)
+                    clearValues[i] = {1.0f, 0};
+                else
+                    clearValues[i] = {{0.f, 0.f, 0.f, 0.f}};
+            }
+
         }
 
       

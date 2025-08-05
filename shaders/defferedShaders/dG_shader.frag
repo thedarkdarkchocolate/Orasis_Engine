@@ -30,5 +30,5 @@ void main() {
 
     outPos = vec4(aPos, 1.0);
     outNormal = vec4(normalize(aNormal), 1.f);
-    outColor = vec4(fragColor, 1.0);
+    outColor = vec4(clamp(fragColor, vec3(0), vec3(1)), 1.0);
 }

@@ -66,21 +66,35 @@ namespace Orasis {
       // VkRenderPass getDefferedRenderPass() { return defferedRenderPass; }
       
       // Deffered with no manager
-      // VkImageView getPositionImageViews(int index) { return positionImageViews[index]; }
-      // VkImageView getNormalImageViews(int index) { return normalImageViews[index]; }
-      // VkImageView getAlbedoImageViews(int index) { return albedoImageViews[index]; }
+      // VkImageView getPositionImageViews(int index) { return positionImageViews[(index + 1 )% MAX_FRAMES_IN_FLIGHT]; }
+      // VkImageView getNormalImageViews(int index) { return normalImageViews[(index + 1 )% MAX_FRAMES_IN_FLIGHT]; }
+      // VkImageView getAlbedoImageViews(int index) { return albedoImageViews[(index + 1 )% MAX_FRAMES_IN_FLIGHT]; }
       
-      // Manager Section
+      // ------------- Manager Section -------------
       void initManager();
       
       // Deffered with manager
-      VkRenderPass getDefferedRenderPass()          { return manager->getRenderPass(); }
-      VkImageView getPositionImageViews(int index)  { return manager->getImageView("Positions", index); }
-      VkImageView getNormalImageViews(int index)    { return manager->getImageView("Normal", index); }
-      VkImageView getAlbedoImageViews(int index)    { return manager->getImageView("Albido", index); }
+      VkRenderPass getDefferedRenderPass() { return manager->getRenderPass(); }
+      VkImageView getPositionImageViews(int index) { return manager->getImageView("Positions", index); }
+      VkImageView getNormalImageViews(int index) { return manager->getImageView("Normal", index); }
+      VkImageView getAlbedoImageViews(int index) { return manager->getImageView("Albido", index); }
+      
+      size_t getAttachmentsCountPreSubpass(int index) { return manager->getAttachmentsCountPerSubpass(index); }
+      
+      VkFramebuffer getFrameBufferM(int index) { return manager->getFrameBuffer(index); }
 
-      VkFramebuffer getFrameBufferM(int index)      { return manager->getFrameBuffer(index); }
-      size_t imageCount()                           { return manager->imageCount(); }
+      size_t imageCount() { return manager->imageCount(); }
+      size_t getAttachmentCount() { return manager->attachmentCount(); }
+
+      std::vector<AttachmentInfo> getAttachments() { return manager->getAttachments(); }
+
+      VkDescriptorSet getInputAttachmentDescriptorSet(int frameIndex) {
+        return manager->getInputAttachmentDescriptorSet(frameIndex);
+      }
+
+      DescriptorSetLayout& getInputAttachmentSetLayout() {
+        return manager->getInputAttachmentSetLayout();
+      }
       
       
 
@@ -120,7 +134,7 @@ namespace Orasis {
     VkImageView getImageView(int index) { return swapChainImageViews[index]; }
     VkFormat getSwapChainImageFormat() {return swapChainImageFormat;}
 
-    // size_t imageCount() { return swapChainImages.size(); } <------- If manager doesn't work need to uncomment this
+    // size_t imageCount() { return swapChainImages.size(); } //----- If manager doesn't work need to uncomment this
     
     VkExtent2D getSwapChainExtent() { return swapChainExtent; }
     uint32_t width() { return swapChainExtent.width; }

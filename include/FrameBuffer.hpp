@@ -39,7 +39,7 @@ namespace Orasis {
             
             std::vector<VkFramebuffer> m_frameBuffers;
             VkExtent2D m_extend;
-            uint8_t m_maxFrames;
+            uint8_t m_imageCount;
         
         public:
 
@@ -47,23 +47,26 @@ namespace Orasis {
                 Device& device,
                 VkRenderPass renderPass,
                 VkExtent2D extent,
-                uint8_t maxFrames
+                uint8_t imageCount
             )
-            :m_device{device}, m_renderPass{renderPass}, m_extend{extent}, m_maxFrames{maxFrames}
+            :m_device{device}, m_renderPass{renderPass}, m_extend{extent}, m_imageCount{imageCount}
             {
-                m_frameBuffers.resize(m_maxFrames);
+                m_frameBuffers.resize(m_imageCount);
+                m_frameBuffers.shrink_to_fit();
             }
 
         
 
             void create(std::vector<std::vector<std::shared_ptr<Image>>> images)
             {
-                for (uint32_t i = 0; i < m_maxFrames; i++) {
+                for (uint32_t i = 0; i < m_imageCount; i++) {
                     std::vector<VkImageView> attachments;
 
-                    for (auto& img : images) {
-                        attachments.push_back(img[i]->s_imageView);  
+                    for (auto& attachment : images) {
+                        attachments.push_back(attachment[i]->s_imageView);  
                     }
+                    attachments.shrink_to_fit();
+
 
                     VkFramebufferCreateInfo framebufferInfo{};
                     framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;

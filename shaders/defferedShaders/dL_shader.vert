@@ -33,7 +33,7 @@ const vec3 quad[6] = vec3[](
 
 void main() {
 
-    gl_Position = push.model * vec4(quad[gl_VertexIndex], 1.f);
+    gl_Position = vec4(quad[gl_VertexIndex], 1.f);
 
 
 }

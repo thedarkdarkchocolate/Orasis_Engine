@@ -22,7 +22,6 @@ namespace Orasis {
         // Order of decleration matters (Variable get created from top to bottom and destroyed in the reverse)
         // we need the global pool to be destroyed before the device
         std::unique_ptr<DescriptorPool> globalPool{};
-        std::unique_ptr<DescriptorPool> gBufferPool{};
         GameObject::uMap gameObjects;
         
 
@@ -45,16 +44,6 @@ namespace Orasis {
                         // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
                         .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT)
                         .build();
-
-                gBufferPool = 
-                    DescriptorPool::Builder(ors_Device)                                         
-                        .setMaxSets(SwapChain::MAX_FRAMES_IN_FLIGHT)
-                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
-                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
-                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
-                        .build();
-
-
 
                 loadGameObjects();
 
@@ -115,19 +104,16 @@ namespace Orasis {
                         .build(globalDescriptorSets[i]);
                 }
 
-                // std::unique_ptr<Orasis::DescriptorSetLayout> gBufferDiscrSetLayout = 
-                //         DescriptorSetLayout::Builder(ors_Device)
-                //             .addBinding(0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
-                //             .addBinding(1, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
-                //             .addBinding(2, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
-                //             .build();
-
                 // Systems Initialization
                 // RenderSystem renderSys          {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};   
                 // PointLightSystem pointLightSys  {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};   
                 // ComputeSystem computeSys        {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};
+
+                // TEST
+                std::vector<VkDescriptorSetLayout> gBuffersSetLayout = {globalDiscrSetLayout->getDescriptorSetLayout(), ors_Render.getInputAttachmentSetLayout().getDescriptorSetLayout()};
+
                 DefferedSystem defferedSys      {ors_Device, ors_Render.getSwapChainDefferedRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout(),
-                                                 globalDiscrSetLayout->getDescriptorSetLayout()};
+                                                 gBuffersSetLayout, ors_Render.ors_SwapChain};
                 
                 Camera camera{};
                 KmbMovementController cameraController{};
@@ -149,6 +135,7 @@ namespace Orasis {
                     currTime = newTime;
                     
                     //ui->newFrame();
+                    // printf("%f \n", 1/dt);
                     
                     float aspect = ors_Render.getAspectRatio();
                     cameraController.moveInPlaneXZ(ors_Window.getWindow(), cameraObj, dt);
@@ -165,6 +152,7 @@ namespace Orasis {
                             cmndBuffer,
                             camera,
                             globalDescriptorSets[frameIndex],
+                            ors_Render.getInputAttachmentDescriptorSet(frameIndex),
                             gameObjects,
                             frameIndex,
                             dt
@@ -209,20 +197,20 @@ namespace Orasis {
 
             void loadGameObjects()
             {
-                std::shared_ptr<Model> model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/cube.obj");
-                GameObject smoothVase = GameObject::createGameObject();
-                smoothVase.model = model;
-                smoothVase.transform.translation = {0.f, 0.5f, 4.f};
-                smoothVase.transform.scale = glm::vec3(0.5f);
-                gameObjects.emplace(smoothVase.getID(), std::move(smoothVase));
-                
-                model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/cube.obj");
+                std::shared_ptr<Model> model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/colored_cube.obj");
                 GameObject cube = GameObject::createGameObject();
                 cube.model = model;
-                cube.transform.translation = {1.f, -3.5, -1.f};
-                cube.transform.scale = glm::vec3(0.05f);
-                cube.color = glm::vec3(1.f);
+                // cube.color = glm::vec3(1.f, 0.f, 0.f);
+                cube.transform.translation = {0.f, 0.5f, 4.f};
+                cube.transform.scale = glm::vec3(0.5f);
                 gameObjects.emplace(cube.getID(), std::move(cube));
+                
+                model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/cube.obj");
+                GameObject lightCube = GameObject::createGameObject();
+                lightCube.model = model;
+                lightCube.transform.translation = {1.f, -3.5, -1.f};
+                lightCube.transform.scale = glm::vec3(0.05f);
+                gameObjects.emplace(lightCube.getID(), std::move(lightCube));
                 
                 model = Model::createModelFromFile(ors_Device, "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/models/quad.obj");
                 GameObject quad = GameObject::createGameObject();

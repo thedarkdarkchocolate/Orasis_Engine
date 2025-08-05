@@ -46,8 +46,10 @@ namespace Orasis {
     {
 
         subAttachment.s_attachIndex = attachmentNum++;
-        s_subPassAttachments[subAttachment.s_subpassToAttach].emplace_back(subAttachment);
-        s_renderPassAttachmentsStruct.emplace_back(subAttachment);
+        
+        std::shared_ptr<SubpassAttachment> tmpShared = std::make_shared<SubpassAttachment>(subAttachment);
+        s_subPassAttachments[subAttachment.s_subpassToAttach].emplace_back(tmpShared);
+        s_renderPassAttachmentsStruct.emplace_back(tmpShared);
 
         return *this;
     }
@@ -70,30 +72,33 @@ namespace Orasis {
 
     RenderPass::RenderPass(
         Device& device,
-        std::unordered_map<uint8_t, std::vector<SubpassAttachment>> subPassAttachments,
-        std::vector<SubpassAttachment> renderPassAttachmentsStruct,
+        std::unordered_map<uint8_t, std::vector<std::shared_ptr<SubpassAttachment>>> subPassAttachments,
+        std::vector<std::shared_ptr<SubpassAttachment>> renderPassAttachmentsStruct,
         std::vector<VkSubpassDependency> subpassDependancies
     )
     : m_device{device}
     {
+
+        m_totalAttachments = renderPassAttachmentsStruct.size();
+        
         // The s_previous here will hold the last subpass value so it hold the total 
-        uint8_t totalSubpasses = (renderPassAttachmentsStruct[renderPassAttachmentsStruct.size() - 1].s_previousSubpass + 1);
+        uint8_t totalSubpasses = (renderPassAttachmentsStruct[m_totalAttachments - 1]->s_previousSubpass + 1);
 
         std::vector<VkAttachmentDescription> renderPassAttachments = {};
         
         // Configuring Attachements Description
         for (int i = 0; i < renderPassAttachmentsStruct.size(); i++)
         {
-            SubpassAttachment currAttachment = renderPassAttachmentsStruct[i];
+            auto& currAttachment = renderPassAttachmentsStruct[i];
             VkAttachmentDescription desc{};
 
-            desc.format           = currAttachment.s_attachFormat;
+            desc.format           = currAttachment->s_attachFormat;
             desc.samples          = VK_SAMPLE_COUNT_1_BIT;
             desc.loadOp           = VK_ATTACHMENT_LOAD_OP_CLEAR;
             desc.stencilLoadOp    = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
             desc.initialLayout    = VK_IMAGE_LAYOUT_UNDEFINED;
 
-            switch (currAttachment.s_type)
+            switch (currAttachment->s_type)
             {
                 case Attachment::Type::isColor:
                     desc.storeOp     = VK_ATTACHMENT_STORE_OP_STORE;
@@ -104,8 +109,13 @@ namespace Orasis {
                     desc.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                     break;
                 case Attachment::Type::isPresented:
-                    desc.storeOp     = VK_ATTACHMENT_STORE_OP_STORE;
-                    desc.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+                    desc = {};
+                    desc.format         = currAttachment->s_attachFormat;
+                    desc.samples        = VK_SAMPLE_COUNT_1_BIT;
+                    desc.loadOp         = VK_ATTACHMENT_LOAD_OP_CLEAR;
+                    desc.storeOp        = VK_ATTACHMENT_STORE_OP_STORE;
+                    desc.initialLayout  = VK_IMAGE_LAYOUT_UNDEFINED;
+                    desc.finalLayout    = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
                     break;
                 default:
                     throw std::runtime_error("Unknown attachment type!");
@@ -150,12 +160,12 @@ namespace Orasis {
 
                 VkAttachmentReference ref{};
                 
-                switch (currSubPassAttachment.s_type)
+                switch (currSubPassAttachment->s_type)
                 {
 
                     case Attachment::Type::isColor:
                     
-                        ref.attachment = currSubPassAttachment.s_attachIndex;
+                        ref.attachment = currSubPassAttachment->s_attachIndex;
                         ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
                         subPassesRefs[currSubpass].push_back(ref);
@@ -165,14 +175,15 @@ namespace Orasis {
 
                         hasDepthAttachment = true;
 
-                        depthAttachmentRef.attachment = currSubPassAttachment.s_attachIndex;
+                        depthAttachmentRef.attachment = currSubPassAttachment->s_attachIndex;
                         depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
                         break;
 
                     case Attachment::Type::isPresented:
 
-                        ref.attachment = currSubPassAttachment.s_attachIndex;
+                        ref.attachment = currSubPassAttachment->s_attachIndex;
                         ref.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+                        
 
                         subPassesRefs[currSubpass].push_back(ref);
                         break;
@@ -191,10 +202,10 @@ namespace Orasis {
                 {
                     auto prevSubPassAttachment = subPassAttachments[currSubpass - 1][i];
 
-                    if(prevSubPassAttachment.s_type == Attachment::Type::isColor)
+                    if(prevSubPassAttachment->s_type == Attachment::Type::isColor)
                     {
                         VkAttachmentReference ref{};
-                        ref.attachment = prevSubPassAttachment.s_attachIndex;
+                        ref.attachment = prevSubPassAttachment->s_attachIndex;
                         ref.layout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 
                         inputSubpassRefs[currSubpass].push_back(ref);
@@ -206,8 +217,8 @@ namespace Orasis {
             else 
             {
                 // Pushing back an empty ref so there are no alignment issues
-                VkAttachmentReference ref{};
-                inputSubpassRefs[currSubpass].push_back(ref);
+                // VkAttachmentReference ref{};
+                // inputSubpassRefs[currSubpass].push_back(ref);
             }
 
             subPasses[currSubpass] = {};

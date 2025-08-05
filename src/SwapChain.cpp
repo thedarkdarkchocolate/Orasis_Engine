@@ -51,10 +51,10 @@ void SwapChain::initManager() {
 
   manager = std::make_unique<Manager>(device, managerInfo);
   manager->createDeffered();
+  defferedRenderPass = manager->getRenderPass();
   
   createSyncObjects();
   
-  defferedRenderPass = manager->getRenderPass();
 
 }
 
@@ -143,6 +143,7 @@ VkResult SwapChain::acquireNextImage(uint32_t *imageIndex) {
 }
 
 VkResult SwapChain::submitCommandBuffers(const VkCommandBuffer *buffers, uint32_t *imageIndex) {
+
   if (imagesInFlight[*imageIndex] != VK_NULL_HANDLE) {
     vkWaitForFences(device.device(), 1, &imagesInFlight[*imageIndex], VK_TRUE, UINT64_MAX);
   }
@@ -749,14 +750,14 @@ VkSurfaceFormatKHR SwapChain::chooseSwapSurfaceFormat(const std::vector<VkSurfac
 
 VkPresentModeKHR SwapChain::chooseSwapPresentMode(const std::vector<VkPresentModeKHR> &availablePresentModes) {
 
-  for (const auto &availablePresentMode : availablePresentModes) {
+  // for (const auto &availablePresentMode : availablePresentModes) {
 
-    if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
-      std::cout << "Present mode: Mailbox" << std::endl;
-      return availablePresentMode;
-    }
+  //   if (availablePresentMode == VK_PRESENT_MODE_MAILBOX_KHR) {
+  //     std::cout << "Present mode: Mailbox" << std::endl;
+  //     return availablePresentMode;
+  //   }
 
-  }
+  // }
 
   // for (const auto &availablePresentMode : availablePresentModes) {
   //   if (availablePresentMode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
