@@ -40,21 +40,7 @@ void SwapChain::initManager() {
   
   createSwapChain();
 
-  swapChainDepthFormat = findDepthFormat();
-
-  ManagerInfo managerInfo{};
-  managerInfo.swapChainFormat = swapChainImageFormat;
-  managerInfo.depthFormat     = swapChainDepthFormat;
-  managerInfo.swapChain       = swapChain;
-  managerInfo.extent          = swapChainExtent;
-
-
-  manager = std::make_unique<Manager>(device, managerInfo);
-  manager->createDeffered();
-  defferedRenderPass = manager->getRenderPass();
-  
   createSyncObjects();
-  
 
 }
 
@@ -246,8 +232,8 @@ void SwapChain::createSwapChain() {
   // allowed to create a swap chain with more. That's why we'll first query the final number of
   // images with vkGetSwapchainImagesKHR, then resize the container and finally call it again to
   // retrieve the handles.
-  // vkGetSwapchainImagesKHR(device.device(), swapChain, &imageCount, nullptr);
-  // swapChainImages.resize(imageCount);
+  vkGetSwapchainImagesKHR(device.device(), swapChain, &imageCount, nullptr);
+  swapChainImages.resize(imageCount);
   // vkGetSwapchainImagesKHR(device.device(), swapChain, &imageCount, swapChainImages.data());
 
   swapChainImageFormat = surfaceFormat.format;

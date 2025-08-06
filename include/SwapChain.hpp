@@ -83,7 +83,7 @@ namespace Orasis {
       
       VkFramebuffer getFrameBufferM(int index) { return manager->getFrameBuffer(index); }
 
-      size_t imageCount() { return manager->imageCount(); }
+      // size_t imageCount() { return manager->imageCount(); }
       size_t getAttachmentCount() { return manager->attachmentCount(); }
 
       std::vector<AttachmentInfo> getAttachments() { return manager->getAttachments(); }
@@ -134,9 +134,10 @@ namespace Orasis {
     VkImageView getImageView(int index) { return swapChainImageViews[index]; }
     VkFormat getSwapChainImageFormat() {return swapChainImageFormat;}
 
-    // size_t imageCount() { return swapChainImages.size(); } //----- If manager doesn't work need to uncomment this
+    size_t imageCount() { return swapChainImages.size(); } //----- If manager doesn't work need to uncomment this
     
     VkExtent2D getSwapChainExtent() { return swapChainExtent; }
+    VkSwapchainKHR getSwapChain() { return swapChain; }
     uint32_t width() { return swapChainExtent.width; }
     uint32_t height() { return swapChainExtent.height; }
     VkFormat findDepthFormat();

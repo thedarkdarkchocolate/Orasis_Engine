@@ -62,8 +62,10 @@ namespace Orasis {
                 aquireImageCount();
                 
                 initilizesAllocator();
+
                 createDeffered();
 
+                createDescriptors();
             }
             
             void createDeffered()
@@ -100,11 +102,8 @@ namespace Orasis {
                     if(currAttachment.s_type == Attachment::Type::isPresented)
                         createSwapChainImages(currAttachment, attachIndex);
 
-                    // else if (currAttachment.s_type == Attachment::Type::isColor){
-                    //      m_imagesMap[currAttachment.s_name].push_back(Image::createAttachment(m_device, m_allocator, m_extent, currAttachment));
-                    //      m_imagesArray[attachIndex] = m_imagesMap[currAttachment.s_name];
-                    // }
                     else{
+
                         for (int i = 0; i < maxFrameInFlight; i++)
                         {
                             m_imagesMap[currAttachment.s_name].push_back(Image::createAttachment(m_device, m_allocator, m_extent, currAttachment));
@@ -115,47 +114,34 @@ namespace Orasis {
                 }
                 
                 RenderPass::Builder builder (m_device);
+
                 for(int i = 0; i < attachments.size(); i++)
                     builder.addSubpassAttachments(RenderPass::SubpassAttachment(attachments[i]));
                 
                 std::array<VkSubpassDependency, 2> subpassDependancies = {};
                 {
-                    // // External -> Geometry subpass
-                    // subpassDependancies[0].srcSubpass       = VK_SUBPASS_EXTERNAL;
-                    // subpassDependancies[0].srcStageMask     = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-                    // subpassDependancies[0].srcAccessMask    = VK_ACCESS_MEMORY_READ_BIT;
+                    // External -> Geometry subpass
+                    subpassDependancies[0].srcSubpass       = VK_SUBPASS_EXTERNAL;
+                    subpassDependancies[0].srcStageMask     = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+                    subpassDependancies[0].srcAccessMask    = VK_ACCESS_MEMORY_READ_BIT;
                     
-                    // // External - > dst -> Geometry Subpass index 0
-                    // subpassDependancies[0].dstSubpass       = 0;
-                    // subpassDependancies[0].dstStageMask     = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                    // subpassDependancies[0].dstAccessMask    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-                    // subpassDependancies[0].dependencyFlags  = VK_DEPENDENCY_BY_REGION_BIT;
+                    // External - > dst -> Geometry Subpass index 0
+                    subpassDependancies[0].dstSubpass       = 0;
+                    subpassDependancies[0].dstStageMask     = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                    subpassDependancies[0].dstAccessMask    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                    subpassDependancies[0].dependencyFlags  = VK_DEPENDENCY_BY_REGION_BIT;
                     
-                    // // Geometry subpass -> Lighting Subpass
-                    // subpassDependancies[1].srcSubpass       = 0;
-                    // subpassDependancies[1].srcStageMask     = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                    // subpassDependancies[1].srcAccessMask    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+                    // Geometry subpass -> Lighting Subpass
+                    subpassDependancies[1].srcSubpass       = 0;
+                    subpassDependancies[1].srcStageMask     = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+                    subpassDependancies[1].srcAccessMask    = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
                     
-                    // // Geometry Subpass index 0 -> Lighting Subpass index 1
-                    // subpassDependancies[1].dstSubpass       = 1;
-                    // subpassDependancies[1].dstStageMask     = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-                    // subpassDependancies[1].dstAccessMask    = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-                    // subpassDependancies[1].dependencyFlags  = VK_DEPENDENCY_BY_REGION_BIT;
-                    subpassDependancies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-                    subpassDependancies[0].dstSubpass = 0;
-                    subpassDependancies[0].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                    subpassDependancies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                    subpassDependancies[0].srcAccessMask = 0;
-                    subpassDependancies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-                    subpassDependancies[0].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
-
-                    subpassDependancies[1].srcSubpass = 0;
-                    subpassDependancies[1].dstSubpass = 1;
-                    subpassDependancies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-                    subpassDependancies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-                    subpassDependancies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-                    subpassDependancies[1].dstAccessMask = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
-                    subpassDependancies[1].dependencyFlags = VK_DEPENDENCY_BY_REGION_BIT;
+                    // Geometry Subpass index 0 -> Lighting Subpass index 1
+                    subpassDependancies[1].dstSubpass       = 1;
+                    subpassDependancies[1].dstStageMask     = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+                    subpassDependancies[1].dstAccessMask    = VK_ACCESS_INPUT_ATTACHMENT_READ_BIT;
+                    subpassDependancies[1].dependencyFlags  = VK_DEPENDENCY_BY_REGION_BIT;
+                    
                 }
                 
                 
@@ -170,12 +156,17 @@ namespace Orasis {
                 m_frameBuffer = std::make_unique<FrameBuffer>(m_device, m_renderPass->renderPass(), m_extent, m_imageCount);
                 m_frameBuffer->create(m_imagesArray);
 
-                
+
+            }
+
+
+            void createDescriptors()
+            {
                 // ------------------- Descriptors ------------------- 
                 
                 m_managerPool = DescriptorPool::Builder(m_device)
                 .setMaxSets(2)
-                .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 3 * maxFrameInFlight) 
+                .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 3 * m_imageCount) 
                 .build();
                 
                 m_managerDiscrSetLayout = DescriptorSetLayout::Builder(m_device)
@@ -184,9 +175,9 @@ namespace Orasis {
                 .addBinding(2, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
                 .build();
                 
-                m_managerDescriptorSets.resize(maxFrameInFlight);
+                m_managerDescriptorSets.resize(m_imageCount);
 
-                for (int i = 0; i < maxFrameInFlight; ++i) {
+                for (int i = 0; i < m_imageCount; ++i) {
                     VkDescriptorImageInfo posInfo{};
                     posInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
                     posInfo.imageView = m_imagesMap["Positions"][0]->s_imageView;
@@ -212,63 +203,19 @@ namespace Orasis {
 
                 
                 // ------------------- End Descriptors ------------------- 
-
-
-
             }
             
-            VkImage getImage(std::string name, int index)
-            {
-                return m_imagesMap[name][index]->s_image;
-            }
-            
-            VkImageView getImageView(std::string name, int index)
-            {
-                return m_imagesMap[name][index]->s_imageView;
-            }
-
-            VkRenderPass getRenderPass()
-            {
-                return m_renderPass->renderPass();
-            }
-
-            VkFramebuffer getFrameBuffer(int frameIndex)
-            {
-                return m_frameBuffer->getFrameBuffer(frameIndex);
-            }
-
-            size_t imageCount()
-            {
-                return m_imageCount;
-            }
-
-            size_t attachmentCount()
-            {
-                return m_imagesArray.size();
-            }
-
-            std::vector<AttachmentInfo> getAttachments()
-            {
-                return m_attachments;
-            }
-
-            std::vector<std::vector<AttachmentInfo>> getAttachmentsPerSubpass()
-            {
-                return m_attachmentsPerSubpass;
-            }
-
-            size_t getAttachmentsCountPerSubpass(int frameIndex)
-            {
-                return m_attachmentsPerSubpass[frameIndex].size();
-            }
-
-            VkDescriptorSet getInputAttachmentDescriptorSet(int frameIndex) {
-                return m_managerDescriptorSets[frameIndex];
-            }
-
-            DescriptorSetLayout& getInputAttachmentSetLayout() {
-                return *m_managerDiscrSetLayout;
-            }
+            VkImage getImage(std::string name, int index)                           { return m_imagesMap[name][index]->s_image; }
+            VkImageView getImageView(std::string name, int index)                   { return m_imagesMap[name][index]->s_imageView; }
+            VkRenderPass getRenderPass()                                            { return m_renderPass->renderPass(); }
+            VkFramebuffer getFrameBuffer(int frameIndex)                            { return m_frameBuffer->getFrameBuffer(frameIndex); }
+            size_t imageCount()                                                     { return m_imageCount; }
+            size_t attachmentCount()                                                { return m_imagesArray.size(); }
+            std::vector<AttachmentInfo> getAttachments()                            { return m_attachments; }
+            std::vector<std::vector<AttachmentInfo>> getAttachmentsPerSubpass()     { return m_attachmentsPerSubpass; }
+            size_t getAttachmentsCountPerSubpass(int frameIndex)                    { return m_attachmentsPerSubpass[frameIndex].size(); }
+            VkDescriptorSet getInputAttachmentDescriptorSet(int frameIndex)         { return m_managerDescriptorSets[frameIndex]; }
+            DescriptorSetLayout& getInputAttachmentSetLayout()                      { return *m_managerDiscrSetLayout; }
 
             void createSwapChainImages(AttachmentInfo attachment, uint32_t attachIndex)
             {
@@ -280,7 +227,6 @@ namespace Orasis {
 
                 for (auto& image : swapchainImages)
                     m_imagesMap[attachment.s_name].push_back(Image::wrapSwapchainImage(m_device, image, attachment.s_format));
-                
 
                 m_imagesArray[attachIndex] = m_imagesMap[attachment.s_name];
 
@@ -352,7 +298,6 @@ namespace Orasis {
                 }
             }
 
-            
         };
         
         

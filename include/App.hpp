@@ -21,7 +21,6 @@ namespace Orasis {
 
         // Order of decleration matters (Variable get created from top to bottom and destroyed in the reverse)
         // we need the global pool to be destroyed before the device
-        std::unique_ptr<DescriptorPool> globalPool{};
         GameObject::uMap gameObjects;
         
 
@@ -35,16 +34,7 @@ namespace Orasis {
             App()
             {
                 
-                // Order of method chain is from top to bottom
-                globalPool = 
-                    DescriptorPool::Builder(ors_Device)                                         
-                        .setMaxSets(SwapChain::MAX_FRAMES_IN_FLIGHT)
-                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
-                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
-                        // .addPoolSize(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, SwapChain::MAX_FRAMES_IN_FLIGHT)
-                        .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT)
-                        .build();
-
+             
                 loadGameObjects();
 
                 //ui = std::make_unique<UI>(ors_Device, ors_Window, ors_Render.getSwapChainRenderPass());
@@ -68,53 +58,13 @@ namespace Orasis {
 
             void run() {
 
-                // Creating a total number of buffers as the number of frames in flight (each for every frame) 
-                std::vector<std::unique_ptr<Buffer>> uniformBuffers (SwapChain::MAX_FRAMES_IN_FLIGHT);
-
-                for (int i = 0; i < uniformBuffers.size(); i++)
-                {
-                    // Uniform Buffer
-                    uniformBuffers[i] = std::make_unique<Buffer> (
-                        ors_Device,
-                        sizeof(UBO_struct),
-                        1,
-                        VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-                        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,        // Need to use this bit if we dont manually flush the buffers to the device VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
-                        ors_Device.properties.limits.minUniformBufferOffsetAlignment
-                    );
-                    uniformBuffers[i]->map();    // Enables writing on the buffer
-                }
-
-                // Configuring Descriptor Layout Info
-                std::unique_ptr<Orasis::DescriptorSetLayout> globalDiscrSetLayout = 
-                        DescriptorSetLayout::Builder(ors_Device)
-                            // .addBinding(0, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
-                            // .addBinding(1, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
-                            // .addBinding(2, VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, VK_SHADER_STAGE_FRAGMENT_BIT)
-                            .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
-                            .build();
                 
-                std::vector<VkDescriptorSet> globalDescriptorSets(SwapChain::MAX_FRAMES_IN_FLIGHT);
-
-                for(int i = 0; i < globalDescriptorSets.size(); i ++)
-                {
-                    VkDescriptorBufferInfo bufferInfo = uniformBuffers[i]->descriptorInfo();
-                    DescriptorWriter(*globalDiscrSetLayout, *globalPool)
-                        .writeBuffer(0, &bufferInfo)
-                        .build(globalDescriptorSets[i]);
-                }
 
                 // Systems Initialization
                 // RenderSystem renderSys          {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};   
                 // PointLightSystem pointLightSys  {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};   
                 // ComputeSystem computeSys        {ors_Device, ors_Render.getSwapChainRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout()};
 
-                // TEST
-                std::vector<VkDescriptorSetLayout> gBuffersSetLayout = {globalDiscrSetLayout->getDescriptorSetLayout(), ors_Render.getInputAttachmentSetLayout().getDescriptorSetLayout()};
-
-                DefferedSystem defferedSys      {ors_Device, ors_Render.getSwapChainDefferedRenderPass(), globalDiscrSetLayout->getDescriptorSetLayout(),
-                                                 gBuffersSetLayout, ors_Render.ors_SwapChain};
-                
                 Camera camera{};
                 KmbMovementController cameraController{};
                 GameObject cameraObj = GameObject::createGameObject();
@@ -151,8 +101,6 @@ namespace Orasis {
                         FrameInfo frameInfo {
                             cmndBuffer,
                             camera,
-                            globalDescriptorSets[frameIndex],
-                            ors_Render.getInputAttachmentDescriptorSet(frameIndex),
                             gameObjects,
                             frameIndex,
                             dt
@@ -166,9 +114,11 @@ namespace Orasis {
                         ubo_s.projection = camera.getProjection();
                         ubo_s.view = camera.getViewMatrix();
                         ubo_s.cameraPos = camera.getCameraPos();
+
+                        ors_Render.updateBuffer(ubo_s);
                         
-                        uniformBuffers[frameIndex]->writeToBuffer(&ubo_s);
-                        uniformBuffers[frameIndex]->flush();
+                        // uniformBuffers[frameIndex]->writeToBuffer(&ubo_s);
+                        // uniformBuffers[frameIndex]->flush();
 
                         // Render
                         
@@ -177,7 +127,7 @@ namespace Orasis {
                         // renderSys.renderGameObjects(frameInfo);
 
                         // Deffered Render
-                        defferedSys.defferedRender(frameInfo);
+                        ors_Render.render(frameInfo);
 
                         // Render ImGui
                         //ui->render(cmndBuffer);

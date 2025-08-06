@@ -65,11 +65,9 @@ namespace Orasis {
             int frameIndex;
             float dt;
 
-            FrameInfo (VkCommandBuffer o_cmdBuffer,  Camera o_camera, VkDescriptorSet o_globalDescriptorSet, VkDescriptorSet o_secondaryDescriptorSet, GameObject::uMap& o_gameObjects, int o_frameIndex, float o_dt)
+            FrameInfo (VkCommandBuffer o_cmdBuffer,  Camera o_camera, GameObject::uMap& o_gameObjects, int o_frameIndex, float o_dt)
             :cmdBuffer{o_cmdBuffer},
              camera{o_camera},
-             globalDescriptorSet{o_globalDescriptorSet},
-             secondaryDescriptorSet{o_secondaryDescriptorSet},
              gameObjects{o_gameObjects},
              frameIndex{o_frameIndex},
              dt{o_dt}

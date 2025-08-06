@@ -2,6 +2,7 @@
 
 #include "Pipeline.hpp"
 #include "SwapChain.hpp"
+#include "Render_Systems/DefferedSystem.hpp"
 
 #include <memory>
 #include <vector>
@@ -19,11 +20,13 @@ namespace Orasis {
         Window& ors_Window;
         Device& ors_Device;
         
-        // CHANGE IT TO UNIQUE AFTER TEST
-        public:
         std::shared_ptr<SwapChain> ors_SwapChain;
-        private:
-        // CHANGE IT TO UNIQUE AFTER TEST
+
+        std::vector<std::unique_ptr<Buffer>> uniformBuffers;
+        std::unique_ptr<DescriptorPool> globalPool{};
+        std::unique_ptr<Orasis::DescriptorSetLayout> globalDiscrSetLayout{};
+        std::vector<VkDescriptorSet> globalDescriptorSets{};
+
 
         std::vector<VkCommandBuffer> commandBuffers;
 
@@ -33,16 +36,21 @@ namespace Orasis {
         
         // -------- -------- -------- -------- //
 
-
         public:
+
+        std::unique_ptr<DefferedSystem> defferedSys;
+
+
 
         // -------- CONSTRUCTOR etc -------- //
 
         Render(Window& window, Device& device)
         :ors_Window{window}, ors_Device{device}
         {
+            createUboDescriptors();
             recreateSwapChain();
             createCommandBuffers();
+
         }
 
         ~Render()
@@ -103,8 +111,8 @@ namespace Orasis {
 
             VkRenderPassBeginInfo renderPassInfo{};
             renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-            renderPassInfo.renderPass = ors_SwapChain->getDefferedRenderPass();
-            renderPassInfo.framebuffer = ors_SwapChain->getFrameBufferM(currentImageIndex);
+            renderPassInfo.renderPass = defferedSys->def_Manager->getRenderPass();
+            renderPassInfo.framebuffer = defferedSys->def_Manager->getFrameBuffer(currentImageIndex);
             renderPassInfo.renderArea.offset = {0, 0};
             renderPassInfo.renderArea.extent = ors_SwapChain->getSwapChainExtent();
 
@@ -135,6 +143,11 @@ namespace Orasis {
 
             vkCmdSetViewport(commandBuffer, 0, 1, &viewport);
             vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+        }
+
+        void render(FrameInfo& frameInfo)
+        {
+            defferedSys->defferedRender(frameInfo, {globalDescriptorSets[currentFrameIndex]});
         }
         
         void endSwapChainRenderPass(VkCommandBuffer commandBuffer)
@@ -172,6 +185,54 @@ namespace Orasis {
             isFrameStarted = false;
             currentFrameIndex = (currentFrameIndex + 1) % SwapChain::MAX_FRAMES_IN_FLIGHT;
             
+        }
+
+        void createUboDescriptors()
+        {
+            globalPool = 
+                DescriptorPool::Builder(ors_Device)                                         
+                    .setMaxSets(SwapChain::MAX_FRAMES_IN_FLIGHT)
+                    .addPoolSize(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, SwapChain::MAX_FRAMES_IN_FLIGHT)
+                    .build();
+
+            // Creating a total number of buffers as the number of frames in flight (each for every frame) 
+            uniformBuffers.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
+
+            for (int i = 0; i < uniformBuffers.size(); i++)
+            {
+                // Uniform Buffer
+                uniformBuffers[i] = std::make_unique<Buffer> (
+                    ors_Device,
+                    sizeof(UBO_struct),
+                    1,
+                    VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+                    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,        // Need to use this bit if we dont manually flush the buffers to the device VK_MEMORY_PROPERTY_HOST_COHERENT_BIT
+                    ors_Device.properties.limits.minUniformBufferOffsetAlignment
+                );
+                uniformBuffers[i]->map();    // Enables writing on the buffer
+            }
+
+            // Configuring Descriptor Layout Info
+            globalDiscrSetLayout = 
+                    DescriptorSetLayout::Builder(ors_Device)
+                        .addBinding(0, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT)
+                        .build();
+            
+            globalDescriptorSets.resize(SwapChain::MAX_FRAMES_IN_FLIGHT);
+
+            for(int i = 0; i < globalDescriptorSets.size(); i ++)
+            {
+                VkDescriptorBufferInfo bufferInfo = uniformBuffers[i]->descriptorInfo();
+                DescriptorWriter(*globalDiscrSetLayout, *globalPool)
+                    .writeBuffer(0, &bufferInfo)
+                    .build(globalDescriptorSets[i]);
+            }
+        }
+
+        void updateBuffer(UBO_struct& ubo)
+        {
+            uniformBuffers[currentFrameIndex]->writeToBuffer(&ubo);
+            uniformBuffers[currentFrameIndex]->flush();
         }
 
         bool isFrameInProgress() const
@@ -256,7 +317,6 @@ namespace Orasis {
 
         void recreateSwapChain()
         {
-
             VkExtent2D extent = ors_Window.getExtent();
 
             while(extent.width == 0 || extent.height == 0)
@@ -282,12 +342,13 @@ namespace Orasis {
                 
             }
             
+            defferedSys = std::make_unique<DefferedSystem>(ors_Device, globalDiscrSetLayout->getDescriptorSetLayout(), ors_SwapChain);
             
         }
 
         void getClearValues(std::vector<VkClearValue>& clearValues)
         {
-            auto attachments = ors_SwapChain->getAttachments();
+            auto attachments = defferedSys->def_Manager->getAttachments();
             
             size_t size = attachments.size();
 

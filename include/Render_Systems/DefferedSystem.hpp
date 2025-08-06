@@ -1,28 +1,30 @@
 #pragma once
 
 #include "Header_Includes/Render_Systems_Headers.hpp"
-#include "SwapChain.hpp"
 
 namespace Orasis {
+
+    struct SimplePushConstantData 
+    {
+        glm::mat4 modelMatrix{1.f};
+    };
+
 
     class DefferedSystem {
 
         // -------- MEMBER VARIABLES -------- //
 
-        Device& ors_Device;
-
-        // TEST
-        std::unique_ptr<DescriptorPool> m_managerPool{};
-        std::unique_ptr<Orasis::DescriptorSetLayout> m_managerDiscrSetLayout{};
-        std::vector<VkDescriptorSet> m_managerDescriptorSets{};
+        Device& m_device;
+        std::unique_ptr<Manager> def_Manager;
         std::shared_ptr<SwapChain> m_swapChain;
-        // END TEST
-        
+
         std::unique_ptr<Pipeline> geoPipeline;
         VkPipelineLayout geoLayout;
 
         std::unique_ptr<Pipeline> lightPipeline;
         VkPipelineLayout lightLayout;
+
+        VkDescriptorSetLayout globalSetLayout;
 
         
         // -------- -------- -------- -------- //
@@ -32,23 +34,31 @@ namespace Orasis {
 
         // -------- CONSTRUCTOR etc -------- //
 
-        DefferedSystem(Device& device, VkRenderPass defferedRenderPass, VkDescriptorSetLayout globalSetLayout, std::vector<VkDescriptorSetLayout> gBuffersSetLayout
-        , std::shared_ptr<SwapChain> swapChain)
-        :ors_Device{device}, m_swapChain{swapChain}
+        DefferedSystem(Device& device, VkDescriptorSetLayout globalSetLayout, std::shared_ptr<SwapChain> swapChain)
+        :m_device{device}, globalSetLayout{globalSetLayout}, m_swapChain{swapChain}
         {
-            createGeometryLayout({globalSetLayout});
-            createGeometryPipeline(defferedRenderPass);
+
+            ManagerInfo mngrInfo;
+            mngrInfo.swapChain =        swapChain->getSwapChain();
+            mngrInfo.swapChainFormat =  swapChain->getSwapChainImageFormat();
+            mngrInfo.depthFormat =      swapChain->findDepthFormat();
+            mngrInfo.extent =           swapChain->getSwapChainExtent();
+
+            def_Manager = std::make_unique<Manager>(device, mngrInfo);
             
-            createLightingLayout(gBuffersSetLayout);
-            createLightingPipeline(defferedRenderPass);
+            createGeometryLayout({globalSetLayout});
+            createGeometryPipeline(def_Manager->getRenderPass());
+            
+            createLightingLayout({globalSetLayout, def_Manager->getInputAttachmentSetLayout().getDescriptorSetLayout()});
+            createLightingPipeline(def_Manager->getRenderPass());
 
 
         }
 
         ~DefferedSystem()
         {
-            vkDestroyPipelineLayout(ors_Device.device(), geoLayout, nullptr);
-            vkDestroyPipelineLayout(ors_Device.device(), lightLayout, nullptr);
+            vkDestroyPipelineLayout(m_device.device(), geoLayout, nullptr);
+            vkDestroyPipelineLayout(m_device.device(), lightLayout, nullptr);
         }
 
         DefferedSystem(const DefferedSystem&) = delete;
@@ -63,7 +73,7 @@ namespace Orasis {
 
         
 
-        void defferedRender(FrameInfo& frameInfo)
+        void defferedRender(FrameInfo& frameInfo, std::vector<VkDescriptorSet> descriptors)
         {
             // Instansiating camera and cmdBuffer from frame info
             Camera camera = frameInfo.camera;
@@ -75,8 +85,9 @@ namespace Orasis {
                 frameInfo.cmdBuffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                 geoLayout,
-                0, 1,
-                &frameInfo.globalDescriptorSet,
+                0,
+                static_cast<uint32_t>(descriptors.size()),
+                descriptors.data(),
                 0, nullptr
             );
             
@@ -109,23 +120,15 @@ namespace Orasis {
 
             lightPipeline->bind(commandBuffer);
 
-            // vkCmdBindDescriptorSets(
-            //     commandBuffer,
-            //     VK_PIPELINE_BIND_POINT_GRAPHICS,
-            //     lightLayout,
-            //     0, 1,
-            //     &frameInfo.globalDescriptorSet,
-            //     0, nullptr
-            // );
-
-            VkDescriptorSet sets[2] = {frameInfo.globalDescriptorSet, frameInfo.secondaryDescriptorSet};
+            descriptors.push_back(def_Manager->getInputAttachmentDescriptorSet(frameInfo.frameIndex));
             
             vkCmdBindDescriptorSets(
                 commandBuffer,
                 VK_PIPELINE_BIND_POINT_GRAPHICS,
                 lightLayout,
-                0, 2,
-                sets,
+                0,
+                static_cast<uint32_t>(descriptors.size()),
+                descriptors.data(),
                 0, nullptr
             );
 
@@ -150,7 +153,7 @@ namespace Orasis {
             pipelineLayoutInfo.pushConstantRangeCount = 1;
             pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
-            if (vkCreatePipelineLayout(ors_Device.device(), &pipelineLayoutInfo, nullptr, &geoLayout) != VK_SUCCESS)
+            if (vkCreatePipelineLayout(m_device.device(), &pipelineLayoutInfo, nullptr, &geoLayout) != VK_SUCCESS)
                 throw std::runtime_error("failed to create pipeline layout");   
         }
 
@@ -169,14 +172,14 @@ namespace Orasis {
             pipelineLayoutInfo.pushConstantRangeCount = 1;
             pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
 
-            if (vkCreatePipelineLayout(ors_Device.device(), &pipelineLayoutInfo, nullptr, &lightLayout) != VK_SUCCESS)
+            if (vkCreatePipelineLayout(m_device.device(), &pipelineLayoutInfo, nullptr, &lightLayout) != VK_SUCCESS)
                 throw std::runtime_error("failed to create pipeline layout");  
         }
 
-        void createGeometryPipeline(VkRenderPass& defferedRenderPass)
+        void createGeometryPipeline(VkRenderPass defferedRenderPass)
         {
             Orasis::PipelineConfigInfo pipelineConfig{};
-            Pipeline::defaultPipelineConfigInfo(pipelineConfig, 3);
+            Pipeline::defaultPipelineConfigInfo(pipelineConfig, def_Manager->getAttachmentsCountPerSubpass(0) - 1);
 
             pipelineConfig.renderPass = defferedRenderPass;
             pipelineConfig.pipelineLayout = geoLayout;
@@ -185,7 +188,7 @@ namespace Orasis {
             
             geoPipeline = std::make_unique<Pipeline>
             (
-                ors_Device,
+                m_device,
                 "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/shaders/compiledShaders/dG_shader.vert.spv",
                 "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/shaders/compiledShaders/dG_shader.frag.spv",
                 pipelineConfig
@@ -193,10 +196,10 @@ namespace Orasis {
             
         }
         
-        void createLightingPipeline(VkRenderPass& defferedRenderPass)
+        void createLightingPipeline(VkRenderPass defferedRenderPass)
         {
             Orasis::PipelineConfigInfo pipelineConfig{};
-            Pipeline::defaultPipelineConfigInfo (pipelineConfig, 1);
+            Pipeline::defaultPipelineConfigInfo (pipelineConfig, def_Manager->getAttachmentsCountPerSubpass(1));
             
             pipelineConfig.renderPass = defferedRenderPass;
             pipelineConfig.pipelineLayout = lightLayout;
@@ -205,7 +208,7 @@ namespace Orasis {
             
             lightPipeline = std::make_unique<Pipeline>
             (
-                ors_Device,
+                m_device,
                 "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/shaders/compiledShaders/dL_shader.vert.spv",
                 "C:/Users/thedarkchoco/Desktop/vs_code/Orasis_Engine/shaders/compiledShaders/dL_shader.frag.spv",
                 pipelineConfig
@@ -213,7 +216,8 @@ namespace Orasis {
             
         }
 
-
+        public:
+        friend class Render;
     };
 
 

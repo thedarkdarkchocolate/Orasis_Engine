@@ -5,10 +5,6 @@
 
 namespace Orasis {
 
-    struct SimplePushConstantData 
-    {
-        glm::mat4 modelMatrix{1.f};
-    };
 
     class RenderSystem {
 
