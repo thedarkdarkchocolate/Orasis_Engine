@@ -3,7 +3,7 @@
 #include "Camera.hpp"
 #include "GameObject.hpp"
 
-#include "third_party/include/vulkan/vulkan.h"
+// #include "third_party/include/vulkan/vulkan.h"
 
 namespace Orasis {
 
@@ -27,7 +27,8 @@ namespace Orasis {
         enum Type {
             isColor,
             isDepth,
-            isPresented
+            isPresented,
+            isTexture
         };
         
     };

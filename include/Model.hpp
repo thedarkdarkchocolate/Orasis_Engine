@@ -2,6 +2,7 @@
 
 #include "Device.hpp"
 #include "Buffer.hpp"
+#include "Texture.hpp"
 
 #include <glm/glm.hpp>
 
@@ -9,7 +10,6 @@
 #include <unordered_map>
 #include <vector>
 #include <cstring>
-
 
 
 
@@ -80,15 +80,18 @@ namespace Orasis {
             // Index Buffer, memory, count
             std::unique_ptr<Buffer> indexBuffer;
             uint32_t indexCount;
+
+            // std::shared_ptr<Texture> m_texture;
         
         public:    
             
             
-            Model(Device& device, const Builder& builder)
+            Model(Device& device, const Builder& builder, const std::string& texfilepath = "")
             : ors_Device{device}
             {
                 createVertexBuffers(builder.vertices);
                 createIndexBuffers(builder.indices);
+                // createTexture(texfilepath);
             }
             
             ~Model() {}
@@ -171,11 +174,14 @@ namespace Orasis {
 
             }
 
-            static std::unique_ptr<Model> createModelFromFile(Device& device, const std::string& filepath)
+            static std::unique_ptr<Model> createModelFromFile(Device& device, const std::string& filepath, const std::string& texfilepath = "")
             {
                 Builder builder;
                 builder.loadModel(filepath);
 
+                if (texfilepath._Equal(""))
+                    return std::make_unique<Model>(device, builder, texfilepath);
+                
                 return std::make_unique<Model>(device, builder);
             }
 

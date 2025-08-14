@@ -18,9 +18,6 @@ namespace Orasis {
         Render ors_Render{ors_Window, ors_Device};
         std::unique_ptr<UI> ui;
 
-
-        // Order of decleration matters (Variable get created from top to bottom and destroyed in the reverse)
-        // we need the global pool to be destroyed before the device
         GameObject::uMap gameObjects;
         
 
@@ -37,7 +34,7 @@ namespace Orasis {
              
                 loadGameObjects();
 
-                //ui = std::make_unique<UI>(ors_Device, ors_Window, ors_Render.getSwapChainRenderPass());
+                ui = std::make_unique<UI>(ors_Device, ors_Window, ors_Render.getSwapChainDefferedRenderPass());
 
 
             }
@@ -72,7 +69,7 @@ namespace Orasis {
 
                 auto currTime = std::chrono::high_resolution_clock::now();
 
-                //ui->init();
+                // ui->init();
 
                 
                 while(!ors_Window.shouldClose())
@@ -84,7 +81,7 @@ namespace Orasis {
                     float dt = std::chrono::duration<float, std::chrono::seconds::period>(newTime - currTime).count();
                     currTime = newTime;
                     
-                    //ui->newFrame();
+                    // ui->newFrame();
                     // printf("%f \n", 1/dt);
                     
                     float aspect = ors_Render.getAspectRatio();
@@ -107,7 +104,7 @@ namespace Orasis {
                         };
 
                         if(frameIndex%2);
-                            //ui->updateInfo({(dt*1000.f)});
+                            ui->updateInfo({(dt*1000.f)});
 
                         // Update UBO
                         UBO_struct ubo_s{};
@@ -116,22 +113,14 @@ namespace Orasis {
                         ubo_s.cameraPos = camera.getCameraPos();
 
                         ors_Render.updateBuffer(ubo_s);
-                        
-                        // uniformBuffers[frameIndex]->writeToBuffer(&ubo_s);
-                        // uniformBuffers[frameIndex]->flush();
 
-                        // Render
                         
                         ors_Render.startSwapChainRenderPass(cmndBuffer);
-
-                        // renderSys.renderGameObjects(frameInfo);
-
-                        // Deffered Render
-                        ors_Render.render(frameInfo);
-
-                        // Render ImGui
-                        //ui->render(cmndBuffer);
                         
+                        // Render
+                        ors_Render.render(frameInfo);
+                        // ui->render(cmndBuffer);
+
                         ors_Render.endSwapChainRenderPass(cmndBuffer);
                         ors_Render.endFrame();
 

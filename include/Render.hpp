@@ -2,6 +2,8 @@
 
 #include "Pipeline.hpp"
 #include "SwapChain.hpp"
+// #include "Frame_Info.hpp"
+
 #include "Render_Systems/DefferedSystem.hpp"
 
 #include <memory>
@@ -258,7 +260,7 @@ namespace Orasis {
         
         VkRenderPass getSwapChainDefferedRenderPass() const 
         {
-            return ors_SwapChain->getDefferedRenderPass(); 
+            return defferedSys->def_Manager->getRenderPass(); 
         }
 
         size_t getAttachmentCountPerSubpass(int index)
