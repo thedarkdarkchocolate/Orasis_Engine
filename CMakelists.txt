@@ -14,19 +14,40 @@ set(CMAKE_CXX_STANDARD_REQUIRED TRUE)
 file(GLOB_RECURSE SRC_FILES src/*.cpp)
 add_executable(${PROJECT_NAME} main.cpp ${SRC_FILES})
 
+
 # Include project directories
 include_directories(include)
-include_directories(dependacies)
+include_directories(dependancies)
 include_directories(shaders)
 
 # --- Add ImGui Sources ---
-set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dependacies/imgui)
-set(VULKAN_DIR PUBLIC C:/VulkanSDK/1.4.304.1)
+set(VULKAN_DIR PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/dependancies/Vulkan)
+set(IMGUI_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dependancies/imgui)
+set(GLFW_DIR ${CMAKE_CURRENT_SOURCE_DIR}/dependancies/glfw_3)
 
+# --- Add GLM ---
+# Create a header-only target for glm
+add_library(glm INTERFACE)
+
+# --- Add GLM ---
+target_include_directories(glm INTERFACE ${CMAKE_SOURCE_DIR}/dependancies/glm)
+
+# --- Add Vulkan ---
 target_include_directories(${PROJECT_NAME} ${VULKAN_DIR}/Include)
 target_link_directories(${PROJECT_NAME} ${VULKAN_DIR}/Lib)
 
-target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/dependacies/vk_impl.cpp)
+# # --- Add GLFW ---
+add_library(glfw SHARED IMPORTED)
+
+set_target_properties(glfw PROPERTIES
+    IMPORTED_LOCATION "${GLFW_DIR}/Bin/glfw3.dll"
+    IMPORTED_IMPLIB   "${GLFW_DIR}/Lib/glfw3dll.lib"
+    INTERFACE_INCLUDE_DIRECTORIES "${GLFW_DIR}/include"
+)
+
+
+
+target_sources(${PROJECT_NAME} PRIVATE ${CMAKE_SOURCE_DIR}/dependancies/vk_impl.cpp)
 
 set(IMGUI_SOURCES
     ${IMGUI_DIR}/imgui.cpp
@@ -45,17 +66,16 @@ target_include_directories(imgui PUBLIC
     ${IMGUI_DIR}
     ${IMGUI_DIR}/backends
     ${VULKAN_DIR}
+    ${VULKAN_DIR}/Include
 )
 
-
-
-find_package(glfw3 CONFIG REQUIRED)
-find_package(glm CONFIG REQUIRED)
+# find_package(glfw3 CONFIG REQUIRED)
+# find_package(glm CONFIG REQUIRED)
 # find_package(imgui CONFIG REQUIRED)
 
 
-target_link_libraries(${PROJECT_NAME} PRIVATE glfw glm::glm vulkan-1 imgui)
 target_link_libraries(imgui PRIVATE vulkan-1 glfw)
+target_link_libraries(${PROJECT_NAME} PRIVATE glfw glm vulkan-1 imgui)
 
 
 # ImGui

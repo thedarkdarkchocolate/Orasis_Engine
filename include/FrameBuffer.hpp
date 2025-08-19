@@ -4,7 +4,6 @@
 #include "RenderPass.hpp"
 #include "Frame_Info.hpp"
 #include "Image.hpp"
-#include "third_party/include/vulkan/vulkan.h"
 
 #include <memory>
 

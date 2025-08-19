@@ -1,7 +1,10 @@
 @echo off
 setlocal enabledelayedexpansion
 
-set GLSLC= C:\VulkanSDK\1.4.304.1\Bin\glslc.exe
+set PROJECT_DIR=%~dp0
+@REM set GLSLC= C:\VulkanSDK\1.4.304.0\Bin\glslc.exe
+set GLSLC=%PROJECT_DIR%dependancies\Vulkan\Bin\glslc.exe
+
 
 set SHADER_DIR=shaders
 set OUTPUT_DIR=shaders\compiledShaders
